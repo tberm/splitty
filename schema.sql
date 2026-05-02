@@ -32,21 +32,10 @@ CREATE TABLE group_members (
 );
 
 -- ============================================================
--- SPLIT RULES
--- ============================================================
-
-CREATE TYPE split_method AS ENUM ('even', 'explicit');
--- Adding new methods in future: ALTER TYPE split_method ADD VALUE 'percentage';
-
-CREATE TABLE split_rules (
-    id      SERIAL PRIMARY KEY,
-    method  split_method NOT NULL
-);
-
--- ============================================================
 -- EXPENSES
 -- ============================================================
 
+CREATE TYPE split_method AS ENUM ('even', 'explicit', 'instances');
 CREATE TYPE expense_type AS ENUM ('simple', 'itemised');
 
 CREATE TABLE expenses (
@@ -60,15 +49,20 @@ CREATE TABLE expenses (
     currency        CHAR(3)      NOT NULL DEFAULT 'GBP',
     total_amount    minor_units  NOT NULL,
     -- Only set for simple expenses; NULL for itemised
-    split_rule_id   INTEGER      REFERENCES split_rules(id),
+    split_method    split_method,
+    -- When true, participants are shown a self-assignment reminder; only valid for itemised expenses
+    request_self_assignments BOOLEAN NOT NULL DEFAULT FALSE,
     created_by      INTEGER      NOT NULL REFERENCES users(id),
     created_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
 
-    CONSTRAINT simple_expense_has_split_rule
-        CHECK (type = 'itemised' OR split_rule_id IS NOT NULL),
+    CONSTRAINT simple_expense_has_split_method
+        CHECK (type = 'itemised' OR split_method IS NOT NULL),
 
-    CONSTRAINT itemised_expense_has_no_split_rule
-        CHECK (type = 'simple'   OR split_rule_id IS NULL)
+    CONSTRAINT itemised_expense_has_no_split_method
+        CHECK (type = 'simple'   OR split_method IS NULL),
+
+    CONSTRAINT request_self_assignments_only_for_itemised
+        CHECK (type = 'itemised' OR request_self_assignments = FALSE)
 );
 
 CREATE TABLE expense_items (
@@ -77,7 +71,13 @@ CREATE TABLE expense_items (
     name            TEXT        NOT NULL,
     unit_price      minor_units NOT NULL,
     quantity        INTEGER     NOT NULL DEFAULT 1 CHECK (quantity > 0),
-    split_rule_id   INTEGER     NOT NULL REFERENCES split_rules(id)
+
+    -- NULL until the first attribution claim establishes it as 'explicit' or 'instances'.
+    -- Set by trigger; not writable directly once non-NULL.
+    split_method    split_method,
+
+    CONSTRAINT item_split_method_valid
+        CHECK (split_method IS NULL OR split_method IN ('explicit', 'instances'))
 );
 
 -- ============================================================
@@ -101,8 +101,8 @@ CREATE TABLE expense_participants (
     id                  SERIAL  PRIMARY KEY,
     expense_id          INTEGER NOT NULL REFERENCES expenses(id) ON DELETE CASCADE,
     user_id             INTEGER NOT NULL REFERENCES users(id),
-    -- Only meaningful for itemised expenses; ignored for simple
-    is_accounted_for    BOOLEAN NOT NULL DEFAULT FALSE,
+    -- Set by participant to dismiss the self-assignment reminder
+    acknowledged        BOOLEAN NOT NULL DEFAULT FALSE,
     UNIQUE (expense_id, user_id)
 );
 
@@ -114,12 +114,20 @@ CREATE TABLE attributions (
     expense_id          INTEGER REFERENCES expenses(id)      ON DELETE CASCADE,
     expense_item_id     INTEGER REFERENCES expense_items(id) ON DELETE CASCADE,
 
-    -- NULL iff the parent's split_rule.method = 'even'
+    -- For expense-level (simple) attributions:
+    --   explicit_amount is set for 'explicit' split; NULL for 'even'.
+    -- For item-level attributions:
+    --   exactly one of explicit_amount or claimed_instances must be set.
     explicit_amount     INTEGER CHECK (explicit_amount > 0),
+    claimed_instances   INTEGER CHECK (claimed_instances > 0),
 
     CONSTRAINT attribution_has_exactly_one_target CHECK (
         (expense_id IS NOT NULL AND expense_item_id IS NULL) OR
         (expense_id IS NULL     AND expense_item_id IS NOT NULL)
+    ),
+    -- explicit_amount and claimed_instances are mutually exclusive
+    CONSTRAINT attribution_amount_xor_instances CHECK (
+        NOT (explicit_amount IS NOT NULL AND claimed_instances IS NOT NULL)
     ),
     UNIQUE NULLS NOT DISTINCT (user_id, expense_id),
     UNIQUE NULLS NOT DISTINCT (user_id, expense_item_id)
@@ -256,30 +264,78 @@ CREATE TRIGGER trg_attribution_user_is_participant
     FOR EACH ROW EXECUTE FUNCTION check_attribution_user_is_participant();
 
 -- ----------------------------------------------------------------
--- 5. explicit_amount must be NULL iff split_rule method is 'even'
+-- 5. Validate attribution fields against split method; establish
+--    item split_method on the first claim if not yet set.
 -- ----------------------------------------------------------------
-CREATE OR REPLACE FUNCTION check_attribution_amount_vs_method()
+CREATE OR REPLACE FUNCTION check_attribution_fields_vs_method()
 RETURNS TRIGGER LANGUAGE plpgsql AS $$
 DECLARE
     v_method split_method;
 BEGIN
-    SELECT method INTO v_method FROM split_rules WHERE id = NEW.split_rule_id;
+    -- ---- Expense-level attributions (simple expenses) ----
+    IF NEW.expense_id IS NOT NULL THEN
+        SELECT split_method INTO v_method FROM expenses WHERE id = NEW.expense_id;
 
-    IF v_method = 'even' AND NEW.explicit_amount IS NOT NULL THEN
-        RAISE EXCEPTION 'explicit_amount must be NULL for even split rules';
+        IF v_method = 'even' AND NEW.explicit_amount IS NOT NULL THEN
+            RAISE EXCEPTION 'explicit_amount must be NULL for even split';
+        END IF;
+        IF v_method = 'explicit' AND NEW.explicit_amount IS NULL THEN
+            RAISE EXCEPTION 'explicit_amount must be set for explicit split';
+        END IF;
+        IF NEW.claimed_instances IS NOT NULL THEN
+            RAISE EXCEPTION 'claimed_instances is only valid for item attributions';
+        END IF;
+        RETURN NEW;
     END IF;
 
-    IF v_method = 'explicit' AND NEW.explicit_amount IS NULL THEN
-        RAISE EXCEPTION 'explicit_amount must be set for explicit split rules';
+    -- ---- Item-level attributions ----
+    -- Exactly one of explicit_amount / claimed_instances must be provided
+    IF NEW.explicit_amount IS NULL AND NEW.claimed_instances IS NULL THEN
+        RAISE EXCEPTION 'Item attribution must provide either explicit_amount or claimed_instances';
+    END IF;
+    -- (Both non-null is already blocked by the table CHECK constraint)
+
+    SELECT split_method INTO v_method FROM expense_items WHERE id = NEW.expense_item_id;
+
+    IF v_method IS NULL THEN
+        -- First claim: establish the item's split method
+        IF NEW.explicit_amount IS NOT NULL THEN
+            UPDATE expense_items SET split_method = 'explicit'  WHERE id = NEW.expense_item_id;
+        ELSE
+            UPDATE expense_items SET split_method = 'instances' WHERE id = NEW.expense_item_id;
+        END IF;
+    ELSIF v_method = 'explicit' AND NEW.explicit_amount IS NULL THEN
+        RAISE EXCEPTION 'Item % uses explicit split — provide explicit_amount', NEW.expense_item_id;
+    ELSIF v_method = 'instances' AND NEW.claimed_instances IS NULL THEN
+        RAISE EXCEPTION 'Item % uses instances split — provide claimed_instances', NEW.expense_item_id;
     END IF;
 
     RETURN NEW;
 END;
 $$;
 
-CREATE TRIGGER trg_attribution_amount_vs_method
+CREATE TRIGGER trg_attribution_fields_vs_method
     BEFORE INSERT OR UPDATE ON attributions
-    FOR EACH ROW EXECUTE FUNCTION check_attribution_amount_vs_method();
+    FOR EACH ROW EXECUTE FUNCTION check_attribution_fields_vs_method();
+
+-- ----------------------------------------------------------------
+-- 5b. Block direct changes to a item's split_method once established
+--     (it is set only via the attribution trigger above)
+-- ----------------------------------------------------------------
+CREATE OR REPLACE FUNCTION check_item_split_method_immutable()
+RETURNS TRIGGER LANGUAGE plpgsql AS $$
+BEGIN
+    IF OLD.split_method IS NOT NULL AND NEW.split_method IS DISTINCT FROM OLD.split_method THEN
+        RAISE EXCEPTION
+            'Cannot change split_method of item % once attributions have been made', OLD.id;
+    END IF;
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_item_split_method_immutable
+    BEFORE UPDATE OF split_method ON expense_items
+    FOR EACH ROW EXECUTE FUNCTION check_item_split_method_immutable();
 
 -- ----------------------------------------------------------------
 -- 6. Block reducing total_amount below sum of existing explicit attributions
@@ -310,27 +366,46 @@ CREATE TRIGGER trg_expense_total_reduction
     FOR EACH ROW EXECUTE FUNCTION check_expense_total_reduction();
 
 -- ----------------------------------------------------------------
--- 7. Block reducing an item's (unit_price * quantity) below its explicit attributions
+-- 7. Block reducing an item's price/quantity below what is already claimed.
+--    For 'explicit' items: monetary floor = SUM(explicit_amount).
+--    For 'instances' items: quantity floor = SUM(claimed_instances).
+--    Unit_price changes are always allowed for instances items.
 -- ----------------------------------------------------------------
 CREATE OR REPLACE FUNCTION check_item_price_reduction()
 RETURNS TRIGGER LANGUAGE plpgsql AS $$
 DECLARE
-    v_explicit_sum INTEGER;
-    v_new_total    INTEGER;
+    v_explicit_sum  INTEGER;
+    v_instances_sum INTEGER;
+    v_new_total     INTEGER;
 BEGIN
     v_new_total := NEW.unit_price * NEW.quantity;
 
-    IF v_new_total < (OLD.unit_price * OLD.quantity) THEN
-        SELECT COALESCE(SUM(explicit_amount), 0) INTO v_explicit_sum
-        FROM attributions
-        WHERE expense_item_id = NEW.id;
+    IF OLD.split_method = 'instances' THEN
+        -- Only quantity matters for instances items
+        IF NEW.quantity < OLD.quantity THEN
+            SELECT COALESCE(SUM(claimed_instances), 0) INTO v_instances_sum
+            FROM attributions WHERE expense_item_id = NEW.id;
 
-        IF v_explicit_sum > v_new_total THEN
-            RAISE EXCEPTION
-                'Cannot reduce item total to % — existing explicit attributions sum to %',
-                v_new_total, v_explicit_sum;
+            IF v_instances_sum > NEW.quantity THEN
+                RAISE EXCEPTION
+                    'Cannot reduce item quantity to % — existing instance claims sum to %',
+                    NEW.quantity, v_instances_sum;
+            END IF;
+        END IF;
+    ELSE
+        -- For explicit (or not-yet-established) items: monetary floor
+        IF v_new_total < (OLD.unit_price * OLD.quantity) THEN
+            SELECT COALESCE(SUM(explicit_amount), 0) INTO v_explicit_sum
+            FROM attributions WHERE expense_item_id = NEW.id;
+
+            IF v_explicit_sum > v_new_total THEN
+                RAISE EXCEPTION
+                    'Cannot reduce item total to % — existing explicit attributions sum to %',
+                    v_new_total, v_explicit_sum;
+            END IF;
         END IF;
     END IF;
+
     RETURN NEW;
 END;
 $$;
@@ -350,7 +425,7 @@ BEGIN
         LEFT JOIN expense_items ei ON ei.id = a.expense_item_id
         WHERE a.user_id = OLD.user_id
           AND (a.expense_id = OLD.expense_id OR ei.expense_id = OLD.expense_id)
-          AND a.explicit_amount IS NOT NULL
+          AND (a.explicit_amount IS NOT NULL OR a.claimed_instances IS NOT NULL)
     ) THEN
         RAISE EXCEPTION
             'Cannot remove participant (user %) — they have explicit attributions on expense %',
@@ -372,14 +447,14 @@ CREATE TRIGGER trg_participant_removal
 -- combining explicit attributions with remainder logic.
 --
 -- For simple expenses:
---   - 'even':     total_amount / participant count (remainder to first by id)
+--   - 'even':     total_amount / participant count (remainder to lowest id)
 --   - 'explicit': stored explicit_amount
 --
 -- For itemised expenses, computed per item then summed:
---   - 'even':     item_total / participant count (remainder to first by id)
---   - 'explicit': explicit_amount + share of (item_total - SUM(explicit)) 
---                 distributed evenly across non-accounted-for participants
---                 (or all participants if everyone is accounted for)
+--   - NULL (unclaimed): full item_total enters the remainder pool
+--   - 'explicit': explicit_amount + share of remainder
+--   - 'instances': claimed_instances * unit_price + share of remainder
+--   Remainder is always split evenly across all participants.
 -- ============================================================
 
 CREATE OR REPLACE VIEW effective_attributions AS
@@ -399,9 +474,8 @@ WITH simple_even AS (
         )                                           AS participant_rank
     FROM expenses e
     JOIN expense_participants ep ON ep.expense_id = e.id
-    JOIN split_rules sr          ON sr.id = e.split_rule_id
     WHERE e.type = 'simple'
-      AND sr.method = 'even'
+      AND e.split_method = 'even'
 ),
 
 simple_even_amounts AS (
@@ -411,7 +485,7 @@ simple_even_amounts AS (
         user_id,
         -- Base share (integer division, floored)
         (total_amount / participant_count)
-        -- First participant absorbs the remainder penny/pence
+        -- First participant (lowest id) absorbs the remainder penny
         + CASE WHEN participant_rank = 1
                THEN total_amount - (total_amount / participant_count) * participant_count
                ELSE 0
@@ -430,9 +504,8 @@ simple_explicit AS (
         a.explicit_amount AS effective_amount
     FROM expenses e
     JOIN attributions a  ON a.expense_id = e.id
-    JOIN split_rules sr  ON sr.id = e.split_rule_id
     WHERE e.type = 'simple'
-      AND sr.method = 'explicit'
+      AND e.split_method = 'explicit'
 ),
 
 -- ----------------------------------------------------------------
@@ -440,15 +513,16 @@ simple_explicit AS (
 -- Compute per-item, then aggregate to expense level
 -- ----------------------------------------------------------------
 
--- All items with their totals and split method
+-- All items with their totals, unit_price, and split method
 item_totals AS (
     SELECT
-        ei.id           AS item_id,
+        ei.id                           AS item_id,
         ei.expense_id,
-        ei.unit_price * ei.quantity AS item_total,
-        sr.method       AS split_method
+        ei.unit_price,
+        ei.quantity,
+        ei.unit_price * ei.quantity     AS item_total,
+        ei.split_method
     FROM expense_items ei
-    JOIN split_rules sr ON sr.id = ei.split_rule_id
 ),
 
 -- Count of participants per expense
@@ -458,102 +532,67 @@ expense_participant_counts AS (
     GROUP BY expense_id
 ),
 
--- Count of non-accounted-for participants per expense
-non_accounted_counts AS (
-    SELECT expense_id, COUNT(*) AS non_accounted_count
-    FROM expense_participants
-    WHERE is_accounted_for = FALSE
-    GROUP BY expense_id
-),
-
--- Sum of explicit attributions per item
-item_explicit_sums AS (
+-- Monetary total already claimed per item, unified across both methods:
+--   'explicit':  SUM(explicit_amount)
+--   'instances': SUM(claimed_instances) * unit_price
+--   NULL:        0 (no claims yet)
+item_claimed_totals AS (
     SELECT
-        expense_item_id AS item_id,
-        COALESCE(SUM(explicit_amount), 0) AS explicit_sum
-    FROM attributions
-    WHERE expense_item_id IS NOT NULL
-    GROUP BY expense_item_id
+        it.item_id,
+        CASE it.split_method
+            WHEN 'instances' THEN COALESCE(SUM(a.claimed_instances), 0) * it.unit_price
+            ELSE                  COALESCE(SUM(a.explicit_amount),   0)
+        END AS claimed_total
+    FROM item_totals it
+    LEFT JOIN attributions a ON a.expense_item_id = it.item_id
+    GROUP BY it.item_id, it.split_method, it.unit_price
 ),
 
--- Remainder per item (item_total - explicit_sum)
+-- Remainder per item = item_total - claimed_total
 item_remainders AS (
     SELECT
         it.item_id,
         it.expense_id,
         it.item_total,
+        it.unit_price,
         it.split_method,
-        COALESCE(ies.explicit_sum, 0)           AS explicit_sum,
-        it.item_total - COALESCE(ies.explicit_sum, 0) AS remainder
+        COALESCE(ict.claimed_total, 0)                  AS claimed_total,
+        it.item_total - COALESCE(ict.claimed_total, 0)  AS remainder
     FROM item_totals it
-    LEFT JOIN item_explicit_sums ies ON ies.item_id = it.item_id
+    LEFT JOIN item_claimed_totals ict ON ict.item_id = it.item_id
 ),
 
--- For each participant, compute their share of each item
+-- For each participant, compute their base amount and remainder share per item
 itemised_per_participant_item AS (
     SELECT
         ep.expense_id,
         ep.user_id,
         ir.item_id,
         ir.item_total,
+        ir.unit_price,
         ir.split_method,
         ir.remainder,
         epc.total_count,
-        COALESCE(nac.non_accounted_count, 0) AS non_accounted_count,
-        ep.is_accounted_for,
 
-        -- Their explicit amount on this item (if any)
-        COALESCE(a.explicit_amount, 0) AS explicit_amount,
+        -- Participant's explicitly claimed monetary share on this item
+        CASE ir.split_method
+            WHEN 'explicit'  THEN COALESCE(a.explicit_amount, 0)
+            WHEN 'instances' THEN COALESCE(a.claimed_instances, 0) * ir.unit_price
+            ELSE 0  -- NULL (unclaimed): base is 0
+        END AS base_amount,
 
-        -- Rank within remainder pool for this item
-        -- Pool = non-accounted-for participants, or all if everyone is accounted for
-        CASE
-            WHEN COALESCE(nac.non_accounted_count, 0) = 0
-                -- Everyone accounted for: all participants share remainder
-                THEN ROW_NUMBER() OVER (
-                        PARTITION BY ir.item_id
-                        ORDER BY ep.user_id
-                     )
-            WHEN ep.is_accounted_for = FALSE
-                -- In the remainder pool
-                THEN ROW_NUMBER() OVER (
-                        PARTITION BY ir.item_id, ep.is_accounted_for
-                        ORDER BY ep.user_id
-                     )
-            ELSE NULL  -- accounted-for: not in remainder pool
-        END AS remainder_pool_rank,
-
-        -- Size of the remainder pool for this item
-        CASE
-            WHEN COALESCE(nac.non_accounted_count, 0) = 0 THEN epc.total_count
-            ELSE COALESCE(nac.non_accounted_count, 0)
-        END AS remainder_pool_size,
-
-        -- Is this participant in the remainder pool?
-        CASE
-            WHEN COALESCE(nac.non_accounted_count, 0) = 0 THEN TRUE   -- all in pool
-            WHEN ep.is_accounted_for = FALSE              THEN TRUE   -- non-accounted
-            ELSE FALSE
-        END AS in_remainder_pool
+        -- Rank within remainder pool (all participants, ordered by user_id for rounding)
+        ROW_NUMBER() OVER (
+            PARTITION BY ir.item_id
+            ORDER BY ep.user_id
+        ) AS remainder_pool_rank
 
     FROM expense_participants ep
-    JOIN item_remainders ir          ON ir.expense_id = ep.expense_id
+    JOIN item_remainders ir             ON ir.expense_id = ep.expense_id
     JOIN expense_participant_counts epc ON epc.expense_id = ep.expense_id
-    LEFT JOIN non_accounted_counts nac  ON nac.expense_id = ep.expense_id
-    -- Their explicit attribution for this item (NULL if none)
     LEFT JOIN attributions a
            ON a.expense_item_id = ir.item_id
           AND a.user_id = ep.user_id
-
-    -- For even-split items every participant is included;
-    -- for explicit items only those with attributions OR in remainder pool
-    WHERE ir.split_method = 'even'
-       OR a.user_id IS NOT NULL
-       OR (ir.split_method = 'explicit' AND (
-               COALESCE(nac.non_accounted_count, 0) = 0
-               OR ep.is_accounted_for = FALSE
-           )
-       )
 ),
 
 -- Compute final amount per participant per item
@@ -562,29 +601,13 @@ itemised_item_amounts AS (
         expense_id,
         user_id,
         item_id,
-        CASE split_method
-            WHEN 'even' THEN
-                -- Even split across all participants; remainder to first
-                (item_total / total_count)
-                + CASE WHEN ROW_NUMBER() OVER (PARTITION BY item_id ORDER BY user_id) = 1
-                       THEN item_total - (item_total / total_count) * total_count
-                       ELSE 0
-                  END
-
-            WHEN 'explicit' THEN
-                explicit_amount
-                + CASE WHEN in_remainder_pool THEN
-                    -- Base remainder share
-                    (remainder / remainder_pool_size)
-                    -- First in pool absorbs rounding
-                    + CASE WHEN remainder_pool_rank = 1
-                           THEN remainder - (remainder / remainder_pool_size) * remainder_pool_size
-                           ELSE 0
-                      END
-                  ELSE 0
-                  END
-        END AS item_effective_amount
-
+        -- Base claim + equal share of unattributed remainder (remainder penny to lowest user_id)
+        base_amount
+        + (remainder / total_count)
+        + CASE WHEN remainder_pool_rank = 1
+               THEN remainder - (remainder / total_count) * total_count
+               ELSE 0
+          END AS item_effective_amount
     FROM itemised_per_participant_item
 ),
 

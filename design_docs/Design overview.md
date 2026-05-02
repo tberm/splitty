@@ -42,10 +42,21 @@ Payments record _who paid_, not _who owes_. These are tracked separately via att
 
 A **split rule** defines how an expense or item is divided among participants. The method is set at the expense level (for simple expenses) or at the item level (for itemised expenses).
 
+**Simple expenses** use a single split method set at creation:
+
 |Method|Behaviour|
 |---|---|
 |`even`|The total is divided equally among all participants. No explicit amounts are stored — the share is computed at read time.|
-|`explicit`|Each participant's share is stored as an explicit amount. The sum of explicit amounts may be less than the total; any remainder is handled by the attribution logic below.|
+|`explicit`|Each participant's share is stored as an explicit monetary amount. The sum of explicit amounts may be less than the total; any remainder is handled by the attribution logic below.|
+
+**Itemised expense items** do not have a split method at creation. The method is established by the first attribution claim made against the item and determines how all subsequent claims for that item must be expressed:
+
+|Method|Behaviour|
+|---|---|
+|`explicit`|Each participant's share is stored as an explicit monetary amount. Established when the first attribution is submitted with an `amount`.|
+|`instances`|Each participant claims a whole-number count of item instances. Their monetary share is derived as `claimed_instances × unit_price`. Established when the first attribution is submitted with an `instances` count.|
+
+An item with no attributions yet has `split_method: null`. Its full cost flows into the remainder pool until claims are made.
 
 The model is designed to accommodate additional methods in future (e.g. percentage-based splits or weighted shares) by adding new values to the `split_method` type.
 
@@ -55,7 +66,7 @@ The model is designed to accommodate additional methods in future (e.g. percenta
 
 An **attribution** represents a participant's responsibility for a portion of an expense or item. Attributions are the counterpart to payments: where payments track who paid, attributions track who owes.
 
-For `explicit` split rules, each attribution stores the participant's specific amount. For `even` splits, attribution rows serve as a participant list — the amounts are computed dynamically at read time.
+For `explicit` split rules, each attribution stores the participant's specific monetary amount. For `even` splits, attribution rows serve as a participant list — the amounts are computed dynamically at read time. For `instances` split rules, each attribution stores the participant's claimed instance count; the monetary amount is derived as `claimed_instances × unit_price` at read time.
 
 ---
 
@@ -63,23 +74,28 @@ For `explicit` split rules, each attribution stores the participant's specific a
 
 Every user involved in an expense is recorded as an **expense participant**. Participants must be members of the expense's group.
 
-For itemised expenses, each participant has an `is_accounted_for` flag that drives the remainder logic described below.
+For itemised expenses with `request_self_assignments` enabled, each participant has an `acknowledged` flag they can set to indicate they have finished selecting their items and no longer need the self-assignment reminder.
 
 ---
 
 ## Self-Assignment: Itemised Expenses
 
-Itemised expenses support a flow where the payer creates the expense and adds participants, but each participant then marks their own items rather than having everything pre-assigned.
+Itemised expenses support a flow where the payer creates the expense and adds participants, but each participant then marks their own items rather than having everything pre-assigned. When `request_self_assignments` is `true` on the expense, participants see a prompt in the app to complete their self-assignment. A participant dismisses this prompt by setting their `acknowledged` flag to `true`.
+
+Items are created without a split method. When a participant first claims an item they implicitly establish that item's method for all subsequent claimants:
+
+- Submitting an `amount` establishes the item as `explicit` — subsequent claims must also supply an `amount`.
+- Submitting an `instances` count establishes the item as `instances` — subsequent claims must also supply an `instances` count.
 
 The key concept is **remainder attribution**: at any point in time, some portion of the total cost may not yet have been explicitly attributed to anyone. The app resolves this implicitly:
 
-1. **Remainder** = item total − sum of explicit attributions for that item
-2. The remainder is split evenly across the **non-accounted-for** participants
-3. If all participants are marked as accounted for, any remaining amount (e.g. due to rounding) is split evenly across all participants
+1. **Remainder per item:**
+   - Unclaimed item (no attributions): full item total
+   - `explicit` item: item total − sum of claimed amounts
+   - `instances` item: `(quantity − sum of claimed instances) × unit_price`
+2. The remainder across all items is pooled and split evenly across **all participants**
 
-A participant marks themselves as **accounted for** once they have finished selecting their items. This signals that their portion is fully specified and they should no longer absorb a share of unattributed costs.
-
-This means that during the attribution process, each person's effective share is a live estimate that shifts as others complete their assignments. The final amounts stabilise once everyone is accounted for.
+Each person's effective share is a live estimate that shifts as participants make their claims. The amounts stabilise once all items are fully claimed.
 
 ---
 
@@ -87,9 +103,10 @@ This means that during the attribution process, each person's effective share is
 
 Because `even` splits and itemised remainders are computed dynamically, the app exposes an **effective attributions** view that calculates what each participant actually owes at query time. This combines:
 
+- Even division of the expense total (for simple `even` expenses)
 - Explicit attribution amounts (for `explicit` splits)
-- Even division of the total or item cost (for `even` splits)
-- Each participant's share of any unattributed remainder
+- Instance-derived amounts — `claimed_instances × unit_price` (for `instances` item splits)
+- Each participant's share of any unattributed remainder (unclaimed items, or the unattributed portion of partially-claimed items)
 
 Integer rounding is handled by assigning any indivisible pence to the participant with the lowest ID in the relevant pool.
 
@@ -123,5 +140,10 @@ The following rules are enforced by the database:
 - Attribution users must be participants of the relevant expense
 - A participant cannot be removed from an expense if they have explicit attributions
 - An expense's total amount cannot be reduced below the sum of existing explicit attributions
-- An item's total cannot be reduced below the sum of its existing explicit attributions
-- Explicit amounts must be `NULL` for `even` split rules, and must be set for `explicit` split rules
+- An item's `unit_price × quantity` cannot be reduced below the sum of existing claimed amounts (for `explicit` items) or `sum of claimed instances × unit_price` (for `instances` items)
+- Once an item has at least one attribution, its established split method cannot be changed
+- All attributions on a given item must use the same method: either all supply `amount` (`explicit`) or all supply `instances` (`instances`)
+- For `instances` items, the sum of claimed instances across all attributions must not exceed the item's `quantity`; each individual claim must be ≥ 1
+- For `explicit` items, the sum of claimed amounts must not exceed `unit_price × quantity`
+- Updating an attribution's value must not change its method (e.g. replacing `instances` with `amount` is rejected)
+- Explicit amounts must be `NULL` for `even` split rules on simple expenses, and must be set for `explicit` split rules

@@ -9,7 +9,7 @@ REST API to be implemented with FastAPI. All endpoints are prefixed with `/api/v
 - **Amounts** — all monetary values are in minor units (e.g. pence). The `currency` field uses ISO 4217 (e.g. `"GBP"`).
 - **Timestamps** — ISO 8601 with UTC timezone (e.g. `"2026-03-07T12:00:00Z"`).
 - **Authentication** — JWT Bearer tokens. All endpoints except `/auth/*` require `Authorization: Bearer <token>`.
-- **Split method** — the API exposes `split_method: "even" | "explicit"` inline on expenses and items; the underlying `split_rules` table is an implementation detail invisible to callers.
+- **Split method** — simple expenses use `split_method: "even" | "explicit"`. Itemised expense items do not have a split method at creation; it is set to `null` until the first attribution claim establishes it as `"explicit"` (monetary amount) or `"instances"` (whole instance count). The underlying `split_rules` table is an implementation detail invisible to callers.
 - **Partial updates** — `PUT` endpoints accept only the fields you want to change; omitted fields are left unchanged.
 - **Pagination** — list endpoints return `{ "items": [...], "total": N, "page": N, "page_size": N }`. Default `page_size` is 20.
 
@@ -397,6 +397,7 @@ Paginated list of expenses for the group, ordered by `created_at` descending. Ea
       "type": "simple",
       "currency": "GBP",
       "total_amount": 24000,
+      "request_self_assignments": false,
       "created_by": 1,
       "created_at": "2026-03-05T15:00:00Z"
     }
@@ -454,7 +455,7 @@ Create an expense with all its parts in one request. For itemised expenses creat
 
 #### Itemised
 
-`items` and per-item `attributions` may be omitted (or empty) to support the self-assignment flow where participants fill in their own items later.
+`items` and per-item `attributions` may be omitted (or empty) to support the self-assignment flow where participants fill in their own items later. Items have no `split_method` at creation; providing `attributions` at creation time establishes the method (inferred from whether each attribution supplies `amount` or `instances`).
 
 ```json
 {
@@ -462,6 +463,7 @@ Create an expense with all its parts in one request. For itemised expenses creat
   "type": "itemised",
   "currency": "GBP",
   "total_amount": 7500,
+  "request_self_assignments": true,
   "receipt_image_key": "r_a1b2c3d4",
   "payments": [
     { "paid_by": 1, "amount": 7500 }
@@ -472,14 +474,21 @@ Create an expense with all its parts in one request. For itemised expenses creat
       "name": "Margherita",
       "unit_price": 1200,
       "quantity": 2,
-      "split_method": "even",
       "attributions": []
+    },
+    {
+      "name": "Garlic Bread",
+      "unit_price": 450,
+      "quantity": 3,
+      "attributions": [
+        { "user_id": 1, "instances": 2 },
+        { "user_id": 2, "instances": 1 }
+      ]
     },
     {
       "name": "Wine",
       "unit_price": 3000,
       "quantity": 1,
-      "split_method": "explicit",
       "attributions": [
         { "user_id": 1, "amount": 2000 },
         { "user_id": 2, "amount": 1000 }
@@ -508,6 +517,7 @@ Full expense detail including payments, participants, and (for itemised) items w
   "currency": "GBP",
   "total_amount": 7500,
   "split_method": null,
+  "request_self_assignments": true,
   "created_by": 1,
   "created_at": "2026-03-05T19:00:00Z",
   "has_receipt": true,
@@ -515,8 +525,8 @@ Full expense detail including payments, participants, and (for itemised) items w
     { "id": 3, "paid_by": 1, "amount": 7500, "paid_at": "2026-03-05T19:00:00Z", "notes": null }
   ],
   "participants": [
-    { "user_id": 1, "name": "Alice", "is_accounted_for": true  },
-    { "user_id": 2, "name": "Bob",   "is_accounted_for": false }
+    { "user_id": 1, "name": "Alice", "acknowledged": true  },
+    { "user_id": 2, "name": "Bob",   "acknowledged": false }
   ],
   "items": [
     {
@@ -525,8 +535,20 @@ Full expense detail including payments, participants, and (for itemised) items w
       "unit_price": 1200,
       "quantity": 2,
       "item_total": 2400,
-      "split_method": "even",
+      "split_method": null,
       "attributions": []
+    },
+    {
+      "id": 12,
+      "name": "Garlic Bread",
+      "unit_price": 450,
+      "quantity": 3,
+      "item_total": 1350,
+      "split_method": "instances",
+      "attributions": [
+        { "user_id": 1, "instances": 2, "amount": 900 },
+        { "user_id": 2, "instances": 1, "amount": 450 }
+      ]
     },
     {
       "id": 11,
@@ -544,7 +566,7 @@ Full expense detail including payments, participants, and (for itemised) items w
 }
 ```
 
-`split_method` is `null` for itemised expenses (the method is per-item). `items` is `null` for simple expenses. `has_receipt` is `true` if a receipt image is stored; use the endpoint below to retrieve it.
+`split_method` is `null` for itemised expenses (the method is per-item). For items, `split_method` is `null` until the first attribution establishes it as `"explicit"` or `"instances"`. For `instances` attributions the response includes both the raw `instances` count and the derived `amount` (`instances × unit_price`). `items` is `null` for simple expenses. `has_receipt` is `true` if a receipt image is stored; use the endpoint below to retrieve it.
 
 ---
 
@@ -575,7 +597,8 @@ Update mutable top-level fields. The DB enforces that `total_amount` cannot be r
 {
   "title": "Restaurant (updated)",
   "description": "Friday dinner",
-  "total_amount": 7600
+  "total_amount": 7600,
+  "request_self_assignments": false
 }
 ```
 
@@ -638,8 +661,8 @@ Update mutable top-level fields. The DB enforces that `total_amount` cannot be r
 **Response `200`**
 ```json
 [
-  { "user_id": 1, "name": "Alice", "is_accounted_for": true  },
-  { "user_id": 2, "name": "Bob",   "is_accounted_for": false }
+  { "user_id": 1, "name": "Alice", "acknowledged": true  },
+  { "user_id": 2, "name": "Bob",   "acknowledged": false }
 ]
 ```
 
@@ -656,18 +679,18 @@ Add a participant to the expense. Must be a member of the expense's group.
 
 **Response `201`**
 ```json
-{ "user_id": 4, "name": "Dave", "is_accounted_for": false }
+{ "user_id": 4, "name": "Dave", "acknowledged": false }
 ```
 
 ---
 
 ### `PUT /api/v1/expenses/{expense_id}/participants/{user_id}`
 
-Ad-hoc update to a participant's `is_accounted_for` flag. Prefer the compound `/assignment` endpoint below for the normal self-assignment flow.
+Update a participant's `acknowledged` flag.
 
 **Request**
 ```json
-{ "is_accounted_for": true }
+{ "acknowledged": true }
 ```
 
 **Response `200`** — updated participant object.
@@ -676,7 +699,7 @@ Ad-hoc update to a participant's `is_accounted_for` flag. Prefer the compound `/
 
 ### `PUT /api/v1/expenses/{expense_id}/participants/{user_id}/assignment`
 
-The primary endpoint for the self-assignment flow. Submits a participant's item attributions and marks them as accounted for in a single atomic transaction — either everything commits or nothing does. This prevents the broken intermediate state that would arise if attributions were saved but the `is_accounted_for` flag was never set (e.g. due to a dropped connection).
+The primary endpoint for the self-assignment flow. Atomically upserts a participant's item attributions and optionally sets their `acknowledged` flag — either everything commits or nothing does.
 
 Idempotent: re-submitting the same payload is safe.
 
@@ -684,25 +707,29 @@ Idempotent: re-submitting the same payload is safe.
 ```json
 {
   "attributions": [
-    { "item_id": 10, "amount": 1500 },
+    { "item_id": 12, "instances": 1 },
     { "item_id": 11, "amount": 2000 }
   ],
-  "is_accounted_for": true
+  "acknowledged": true
 }
 ```
 
-`attributions` is an array of explicit item claims. Items omitted from the array are not touched — the participant will absorb a share of those items' remainder until they or someone else accounts for them. `is_accounted_for` may be `false` to save a draft without finalising.
+`attributions` is an array of explicit item claims. Items omitted from the array are not touched — the participant continues to absorb a share of those items' remainder. `acknowledged` may be `false` (or omitted) to save a draft without dismissing the self-assignment reminder.
 
-The server validates that each submitted `amount` does not exceed the corresponding item's total.
+Each claim must supply exactly one of `amount` or `instances`:
+- `amount` — monetary claim in minor units; establishes or matches an `explicit` item.
+- `instances` — whole instance count; establishes or matches an `instances` item.
+
+The server rejects a claim whose shape conflicts with the item's already-established method, and validates that the running totals do not exceed the item's limits.
 
 **Response `200`**
 ```json
 {
   "user_id": 2,
   "name": "Bob",
-  "is_accounted_for": true,
+  "acknowledged": true,
   "attributions": [
-    { "item_id": 10, "amount": 1500 },
+    { "item_id": 12, "instances": 1, "amount": 450 },
     { "item_id": 11, "amount": 2000 }
   ]
 }
@@ -777,13 +804,14 @@ These endpoints apply only to itemised expenses.
 
 ### `POST /api/v1/expenses/{expense_id}/items`
 
+Items are created without a split method. Provide `attributions` at creation time only if claims are already known; the method is inferred from the attribution shape (`amount` → `"explicit"`, `instances` → `"instances"`). Omit or pass `[]` for `attributions` when using the self-assignment flow.
+
 **Request**
 ```json
 {
   "name": "Tiramisu",
   "unit_price": 700,
   "quantity": 2,
-  "split_method": "even",
   "attributions": []
 }
 ```
@@ -794,7 +822,7 @@ These endpoints apply only to itemised expenses.
 
 ### `PUT /api/v1/expenses/{expense_id}/items/{item_id}`
 
-The DB enforces that `unit_price * quantity` cannot be reduced below the sum of existing explicit attributions for the item.
+The DB enforces that `unit_price × quantity` cannot be reduced below the monetary total already claimed (sum of explicit amounts, or sum of claimed instances × unit_price). `split_method` is not a writable field; it is derived from attributions and cannot be changed once set.
 
 **Request** *(all fields optional)*
 ```json
@@ -817,11 +845,18 @@ Cascades to the item's attributions.
 
 ### `GET /api/v1/expenses/{expense_id}/items/{item_id}/attributions`
 
-**Response `200`**
+The shape of each object depends on the item's established split method. For `explicit` items:
 ```json
 [
   { "user_id": 1, "amount": 2000 },
   { "user_id": 2, "amount": 1000 }
+]
+```
+For `instances` items, `instances` and the derived `amount` are both returned:
+```json
+[
+  { "user_id": 1, "instances": 2, "amount": 900 },
+  { "user_id": 2, "instances": 1, "amount": 450 }
 ]
 ```
 
@@ -831,21 +866,33 @@ Cascades to the item's attributions.
 
 Add a single item attribution. For the normal self-assignment flow use the compound `/assignment` endpoint instead; this endpoint is for ad-hoc additions and admin corrections.
 
-**Request**
+Supply either `amount` (establishes or matches `explicit`) or `instances` (establishes or matches `instances`). The server rejects a claim whose shape conflicts with the item's already-established method.
+
+**Request — explicit**
 ```json
 { "user_id": 3, "amount": 1500 }
 ```
+**Request — instances**
+```json
+{ "user_id": 3, "instances": 2 }
+```
 
-**Response `201`** — attribution object.
+**Response `201`** — attribution object (same shape as GET).
 
 ---
 
 ### `PUT /api/v1/expenses/{expense_id}/items/{item_id}/attributions/{user_id}`
 
-**Request**
+**Request — explicit**
 ```json
 { "amount": 1800 }
 ```
+**Request — instances**
+```json
+{ "instances": 1 }
+```
+
+The server rejects a PUT that would change the attribution's method (e.g. replacing an `instances` field with an `amount` field on an already-established item).
 
 **Response `200`** — updated attribution object.
 
@@ -861,7 +908,7 @@ Add a single item attribution. For the normal self-assignment flow use the compo
 
 ### `GET /api/v1/expenses/{expense_id}/effective-attributions`
 
-Returns each participant's computed share, derived from the `effective_attributions` view. This is the live estimate that updates as participants complete their self-assignment.
+Returns each participant's computed share, derived from the `effective_attributions` view. Unattributed item amounts are split evenly across all participants; the amounts stabilise as items become fully claimed.
 
 **Response `200`**
 ```json
@@ -881,7 +928,7 @@ Returns each participant's computed share, derived from the `effective_attributi
 | View group, expenses, balances | Member of the group                         |
 | Create expense / settlement    | Member of the group                         |
 | Add participant to expense     | Member of the group                         |
-| Mark self as accounted for     | The participant themselves (or group admin) |
+| Acknowledge self-assignment     | The participant themselves (or group admin) |
 | Submit attributions for a user | That user themselves (or group admin)       |
 | Delete an expense / settlement | Creator or group admin                      |
 |                                |                                             |
@@ -890,9 +937,9 @@ Returns each participant's computed share, derived from the `effective_attributi
 
 ## Self-Assignment Flow Summary
 
-1. Payer calls `POST /groups/{id}/expenses` with `participant_ids` and payments; items may be added at creation or afterwards via `POST /expenses/{id}/items`.
-2. Each participant calls `GET /expenses/{id}` to see the item list, the current effective-attribution estimates, and which participants are still pending.
-3. The participant selects their items in the UI. The client computes and displays a running total from their selections.
-4. The participant ticks "I've selected all my items" and taps submit. The client calls `PUT /expenses/{id}/participants/{user_id}/assignment` with all their attributions and `"is_accounted_for": true` in a single request.
-5. This atomically upserts the attributions and sets the flag, removing them from the remainder pool and stabilising other participants' estimates.
-6. Once all participants are accounted for, `GET /expenses/{id}/effective-attributions` returns the final settled amounts.
+1. Payer calls `POST /groups/{id}/expenses` with `participant_ids`, payments, and `"request_self_assignments": true`; items may be added at creation or afterwards via `POST /expenses/{id}/items`.
+2. Each participant sees a reminder in the app (driven by `request_self_assignments: true` and their `acknowledged: false` flag). They call `GET /expenses/{id}` to see the item list and the current effective-attribution estimates.
+3. The participant selects their items in the UI. For each item they choose either a monetary amount (`explicit`) or a number of instances (`instances`). The client enforces that the choice is consistent with the item's already-established method (if any), and computes and displays a running total from their selections. Any item cost not yet explicitly claimed is split evenly across all participants.
+4. The participant taps submit. The client calls `PUT /expenses/{id}/participants/{user_id}/assignment` with all their attributions and `"acknowledged": true` in a single request.
+5. This atomically upserts the attributions and dismisses the self-assignment reminder for that participant.
+6. `GET /expenses/{id}/effective-attributions` returns each participant's current share at any time; amounts stabilise as all items become fully claimed.

@@ -10,3 +10,5 @@ wheels/
 .venv
 
 design_docs/.obsidian
+.python-version
+
