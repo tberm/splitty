@@ -8,7 +8,7 @@ import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 
-from app.main import app, get_db
+from app.main import app, get_current_user, get_db
 from tests.factories import (
     add_member,
     insert_group,
@@ -112,4 +112,36 @@ async def client(db: asyncpg.Connection) -> AsyncClient:
         transport=ASGITransport(app=app), base_url="http://test"
     ) as ac:
         yield ac
+    app.dependency_overrides.clear()
+
+
+@pytest_asyncio.fixture()
+async def client_factory(db: asyncpg.Connection):
+    """
+    Fixture factory for authenticated requests. Call client_factory(user) to
+    configure the client to act as that user and get it back. Calling again
+    with a different user switches who subsequent requests are made as.
+    All requests share the test's rolled-back db connection.
+
+    Usage:
+        client = client_factory(simple_group.alice)
+        resp = await client.post(...)
+
+        client_factory(simple_group.bob)   # switch user
+        resp = await client.put(...)       # now acting as Bob
+    """
+    async def override_get_db():
+        yield db
+
+    app.dependency_overrides[get_db] = override_get_db
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        def _as(user: asyncpg.Record) -> AsyncClient:
+            async def override_get_current_user():
+                return user
+            app.dependency_overrides[get_current_user] = override_get_current_user
+            return ac
+
+        yield _as
+
     app.dependency_overrides.clear()

@@ -17,3 +17,8 @@ async def get_db() -> asyncpg.Connection:
         yield conn
     finally:
         await conn.close()
+
+
+async def get_current_user() -> asyncpg.Record:
+    """Overridden in tests. Production implementation will validate a JWT."""
+    raise NotImplementedError
