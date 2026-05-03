@@ -1,0 +1,2143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Splitty — Expense Screen Wireframes</title>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="ios-frame.jsx"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #f0ede8; font-family: 'Caveat', cursive; }
+
+  /* Wireframe primitives */
+  .wf-screen {
+    width: 100%; height: 100%;
+    background: #faf9f7;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+    font-family: 'Caveat', cursive;
+    position: relative;
+  }
+
+  /* Sketchy border utility */
+  .sketchy {
+    border: 2px solid #1a1a1a;
+    border-radius: 3px;
+  }
+  .sketchy-light {
+    border: 1.5px solid #aaa;
+    border-radius: 3px;
+  }
+
+  /* Nav bar */
+  .wf-nav {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px 8px;
+    border-bottom: 2px solid #1a1a1a;
+    flex-shrink: 0;
+    background: #faf9f7;
+  }
+  .wf-nav-title {
+    font-size: 18px; font-weight: 700; color: #1a1a1a;
+    letter-spacing: -0.3px;
+  }
+  .wf-btn {
+    font-family: 'Caveat', cursive;
+    font-size: 15px; font-weight: 600;
+    padding: 4px 12px;
+    border: 2px solid #1a1a1a;
+    border-radius: 20px;
+    background: transparent;
+    cursor: pointer;
+    color: #1a1a1a;
+  }
+  .wf-btn.primary {
+    background: #1a1a1a; color: #faf9f7;
+  }
+  .wf-btn.accent {
+    background: #4a7c59; color: #fff; border-color: #4a7c59;
+  }
+
+  /* Scrollable body */
+  .wf-body {
+    flex: 1; overflow-y: auto; padding: 14px;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .wf-body::-webkit-scrollbar { width: 4px; }
+  .wf-body::-webkit-scrollbar-thumb { background: #ccc; border-radius: 2px; }
+
+  /* Form section */
+  .wf-section {
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .wf-label {
+    font-size: 13px; font-weight: 600; color: #555; letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+  .wf-input {
+    font-family: 'Caveat', cursive;
+    font-size: 17px;
+    padding: 8px 10px;
+    border: 2px solid #1a1a1a;
+    border-radius: 3px;
+    background: #faf9f7;
+    color: #1a1a1a;
+    width: 100%;
+  }
+  .wf-input::placeholder { color: #aaa; }
+
+  /* Amount hero */
+  .wf-amount-hero {
+    display: flex; align-items: center; gap: 8px;
+  }
+  .wf-currency-pill {
+    font-family: 'Caveat', cursive;
+    font-size: 16px; font-weight: 700;
+    padding: 8px 10px;
+    border: 2px solid #1a1a1a;
+    border-radius: 3px;
+    background: #f0ede8;
+    min-width: 52px; text-align: center;
+    color: #1a1a1a;
+    flex-shrink: 0;
+  }
+  .wf-amount-input {
+    font-family: 'DM Mono', monospace;
+    font-size: 26px; font-weight: 500;
+    flex: 1;
+    padding: 6px 10px;
+    border: 2px solid #1a1a1a;
+    border-radius: 3px;
+    background: #faf9f7;
+    color: #1a1a1a;
+  }
+
+  /* Participant chips */
+  .wf-chips {
+    display: flex; flex-wrap: wrap; gap: 6px;
+  }
+  .wf-chip {
+    font-family: 'Caveat', cursive;
+    font-size: 15px;
+    padding: 5px 12px;
+    border: 2px solid #1a1a1a;
+    border-radius: 20px;
+    background: transparent;
+    display: flex; align-items: center; gap: 5px;
+    cursor: pointer;
+  }
+  .wf-chip.selected {
+    background: #1a1a1a; color: #faf9f7;
+  }
+  .wf-chip.add-chip {
+    border-style: dashed; color: #666;
+  }
+  .wf-avatar {
+    width: 22px; height: 22px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700; flex-shrink: 0;
+  }
+
+  /* Split method tabs */
+  .wf-tabs {
+    display: flex; gap: 0;
+    border: 2px solid #1a1a1a; border-radius: 3px; overflow: hidden;
+  }
+  .wf-tab {
+    font-family: 'Caveat', cursive;
+    flex: 1; padding: 7px 4px;
+    font-size: 14px; font-weight: 600;
+    border: none; background: transparent;
+    cursor: pointer; text-align: center;
+    border-right: 2px solid #1a1a1a;
+    color: #444;
+  }
+  .wf-tab:last-child { border-right: none; }
+  .wf-tab.active { background: #1a1a1a; color: #faf9f7; }
+
+  /* Payer row */
+  .wf-payer-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 0;
+    border-bottom: 1.5px dashed #ccc;
+  }
+  .wf-payer-row:last-child { border-bottom: none; }
+  .wf-payer-name { flex: 1; font-size: 17px; }
+  .wf-payer-amount {
+    font-family: 'DM Mono', monospace;
+    font-size: 16px;
+    padding: 4px 8px;
+    border: 1.5px solid #999;
+    border-radius: 3px;
+    background: #faf9f7;
+    width: 80px; text-align: right;
+    color: #1a1a1a;
+  }
+
+  /* Split rows */
+  .wf-split-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 0;
+    border-bottom: 1.5px dashed #ccc;
+  }
+  .wf-split-row:last-child { border-bottom: none; }
+  .wf-split-name { flex: 1; font-size: 16px; }
+  .wf-split-val {
+    font-family: 'DM Mono', monospace;
+    font-size: 15px; color: #555;
+    min-width: 60px; text-align: right;
+  }
+  .wf-split-check {
+    width: 20px; height: 20px; border: 2px solid #1a1a1a;
+    border-radius: 3px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+  }
+
+  /* Segment / stepper */
+  .wf-step-indicator {
+    display: flex; align-items: center; gap: 4px;
+    padding: 10px 14px;
+    border-bottom: 2px solid #1a1a1a;
+    background: #f0ede8;
+    flex-shrink: 0;
+  }
+  .wf-step-dot {
+    width: 28px; height: 28px; border-radius: 50%;
+    border: 2px solid #1a1a1a;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 700; flex-shrink: 0;
+    background: #faf9f7;
+  }
+  .wf-step-dot.done { background: #1a1a1a; color: #fff; }
+  .wf-step-dot.active { background: #4a7c59; color: #fff; border-color: #4a7c59; }
+  .wf-step-line { flex: 1; height: 2px; background: #ccc; }
+  .wf-step-line.done { background: #1a1a1a; }
+
+  /* Card variant */
+  .wf-card {
+    border: 2px solid #1a1a1a;
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .wf-card-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 12px;
+    background: #f0ede8;
+    cursor: pointer;
+  }
+  .wf-card-title { font-size: 16px; font-weight: 700; }
+  .wf-card-preview { font-size: 14px; color: #666; }
+  .wf-card-body { padding: 12px; border-top: 1.5px dashed #bbb; }
+  .wf-card-arrow { font-size: 18px; color: #888; }
+
+  /* Bottom bar */
+  .wf-bottom-bar {
+    padding: 10px 14px;
+    border-top: 2px solid #1a1a1a;
+    background: #faf9f7;
+    flex-shrink: 0;
+  }
+
+  /* Annotation */
+  .wf-annotation {
+    font-family: 'Caveat', cursive;
+    font-size: 13px; color: #888;
+    font-style: italic;
+  }
+
+  /* Divider */
+  .wf-divider {
+    height: 1.5px; background: repeating-linear-gradient(
+      90deg, #ccc 0px, #ccc 6px, transparent 6px, transparent 12px
+    );
+    margin: 2px 0;
+  }
+
+  /* Toggle switch */
+  .wf-toggle {
+    display: flex; gap: 0;
+    border: 2px solid #1a1a1a; border-radius: 3px; overflow: hidden;
+    align-self: flex-start;
+  }
+  .wf-toggle-opt {
+    font-family: 'Caveat', cursive;
+    padding: 5px 14px; font-size: 15px; font-weight: 600;
+    border-right: 2px solid #1a1a1a;
+    background: transparent; color: #555;
+    cursor: pointer;
+  }
+  .wf-toggle-opt:last-child { border-right: none; }
+  .wf-toggle-opt.on { background: #1a1a1a; color: #fff; }
+
+  /* Bottom sheet handle */
+  .wf-handle {
+    width: 36px; height: 4px; border-radius: 2px;
+    background: #ccc; margin: 8px auto 4px;
+  }
+
+  /* Note box */
+  .wf-note {
+    font-family: 'Caveat', cursive;
+    font-size: 13px; color: #666;
+    background: #fff8e7;
+    border: 1.5px dashed #d4a847;
+    border-radius: 3px;
+    padding: 6px 10px;
+  }
+
+  .wf-spacer { height: 6px; }
+  .wf-row { display: flex; gap: 8px; align-items: center; }
+
+  /* Slider placeholder */
+  .wf-slider-track {
+    flex: 1; height: 6px; background: #e0ddd8;
+    border: 1.5px solid #999; border-radius: 3px;
+    position: relative;
+  }
+  .wf-slider-fill {
+    position: absolute; left: 0; top: 0; height: 100%;
+    background: #4a7c59; border-radius: 3px;
+  }
+  .wf-slider-thumb {
+    position: absolute; top: 50%; transform: translate(-50%,-50%);
+    width: 16px; height: 16px; border-radius: 50%;
+    border: 2px solid #1a1a1a; background: #faf9f7;
+  }
+
+  .wf-screen-label {
+    font-family: 'Caveat', cursive;
+    font-size: 13px; font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #888;
+    padding: 0 2px 2px;
+  }
+
+  /* Split item number */
+  .wf-pill-num {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    background: #e8e4de;
+    border: 1.5px solid #999;
+    border-radius: 3px;
+    padding: 2px 7px;
+    min-width: 56px; text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<script type="text/babel">
+// ─── Avatar colors ──────────────────────────────────────────────
+const AVATAR_COLORS = [
+  { bg: '#d4e8d0', fg: '#2d5a3d' },
+  { bg: '#d0dff5', fg: '#1e3a6e' },
+  { bg: '#f5d0d0', fg: '#6e1e1e' },
+  { bg: '#f5e8d0', fg: '#6e4a1e' },
+  { bg: '#e8d0f5', fg: '#4a1e6e' },
+];
+
+const PEOPLE = [
+  { name: 'Alex', init: 'A' },
+  { name: 'Beth', init: 'B' },
+  { name: 'Cal',  init: 'C' },
+  { name: 'Dev',  init: 'D' },
+  { name: 'Erin', init: 'E' },
+];
+
+function Avatar({ idx, size = 22 }) {
+  const c = AVATAR_COLORS[idx % AVATAR_COLORS.length];
+  return (
+    <div className="wf-avatar" style={{ width: size, height: size, background: c.bg, color: c.fg, border: `1.5px solid ${c.fg}` }}>
+      {PEOPLE[idx].init}
+    </div>
+  );
+}
+
+// ─── Variant A: Single Scroll ────────────────────────────────────
+function VariantA() {
+  const [sel, setSel] = React.useState([0, 1, 2]);
+  const [payer, setPayer] = React.useState('single');
+  const [split, setSplit] = React.useState('even');
+
+  const toggle = (i) => setSel(s => s.includes(i) ? s.filter(x => x !== i) : [...s, i]);
+
+  return (
+    <div className="wf-screen">
+      {/* Nav */}
+      <div className="wf-nav">
+        <button className="wf-btn">✕ Cancel</button>
+        <span className="wf-nav-title">Add Expense</span>
+        <button className="wf-btn primary">Save</button>
+      </div>
+
+      <div className="wf-body">
+        {/* Participants */}
+        <div className="wf-section">
+          <div className="wf-label">Who's involved</div>
+          <div className="wf-chips">
+            {PEOPLE.slice(0, 4).map((p, i) => (
+              <button key={i} className={`wf-chip${sel.includes(i) ? ' selected' : ''}`} onClick={() => toggle(i)}>
+                <Avatar idx={i} size={20} />
+                {p.name}
+              </button>
+            ))}
+            <button className="wf-chip add-chip">＋ Add</button>
+          </div>
+        </div>
+
+        <div className="wf-divider" />
+
+        {/* Expense name */}
+        <div className="wf-section">
+          <div className="wf-label">Description</div>
+          <input className="wf-input" placeholder="e.g. Dinner at Nobu" defaultValue="" />
+        </div>
+
+        {/* Amount */}
+        <div className="wf-section">
+          <div className="wf-label">Amount</div>
+          <div className="wf-amount-hero">
+            <div className="wf-currency-pill">£ GBP</div>
+            <input className="wf-amount-input" placeholder="0.00" defaultValue="84.50" />
+          </div>
+        </div>
+
+        <div className="wf-divider" />
+
+        {/* Paid by */}
+        <div className="wf-section">
+          <div className="wf-label">Paid by</div>
+          <div className="wf-toggle">
+            <div className={`wf-toggle-opt${payer === 'single' ? ' on' : ''}`} onClick={() => setPayer('single')}>One person</div>
+            <div className={`wf-toggle-opt${payer === 'multi' ? ' on' : ''}`} onClick={() => setPayer('multi')}>Multiple</div>
+          </div>
+          {payer === 'single' && (
+            <div className="wf-chips" style={{ marginTop: 6 }}>
+              {sel.map(i => (
+                <button key={i} className={`wf-chip${i === 0 ? ' selected' : ''}`} onClick={() => {}}>
+                  <Avatar idx={i} size={20} />
+                  {PEOPLE[i].name}
+                </button>
+              ))}
+            </div>
+          )}
+          {payer === 'multi' && (
+            <div style={{ marginTop: 6 }}>
+              {sel.map(i => (
+                <div key={i} className="wf-payer-row">
+                  <Avatar idx={i} size={24} />
+                  <span className="wf-payer-name">{PEOPLE[i].name}</span>
+                  <input className="wf-payer-amount" placeholder="0.00" defaultValue={i === 0 ? '50.00' : i === 1 ? '34.50' : ''} />
+                </div>
+              ))}
+              <div className="wf-annotation" style={{ marginTop: 4 }}>Total: £84.50 ✓</div>
+            </div>
+          )}
+        </div>
+
+        <div className="wf-divider" />
+
+        {/* Split method */}
+        <div className="wf-section">
+          <div className="wf-label">Split method</div>
+          <div className="wf-tabs">
+            {['Even', 'Amounts', '% Share', 'Custom'].map(t => (
+              <button key={t} className={`wf-tab${split === t ? ' active' : ''}`} onClick={() => setSplit(t)}>{t}</button>
+            ))}
+          </div>
+
+          {split === 'Even' && (
+            <div style={{ marginTop: 8 }}>
+              {sel.map(i => (
+                <div key={i} className="wf-split-row">
+                  <div className="wf-split-check">✓</div>
+                  <Avatar idx={i} size={22} />
+                  <span className="wf-split-name">{PEOPLE[i].name}</span>
+                  <span className="wf-split-val">£{(84.5 / sel.length).toFixed(2)}</span>
+                </div>
+              ))}
+              <div className="wf-note" style={{ marginTop: 8 }}>Split evenly between {sel.length} people</div>
+            </div>
+          )}
+
+          {split === 'Amounts' && (
+            <div style={{ marginTop: 8 }}>
+              {sel.map((i, idx) => (
+                <div key={i} className="wf-split-row">
+                  <Avatar idx={i} size={22} />
+                  <span className="wf-split-name">{PEOPLE[i].name}</span>
+                  <input className="wf-payer-amount" placeholder="0.00" defaultValue={idx === 0 ? '40.00' : idx === 1 ? '24.50' : '20.00'} />
+                </div>
+              ))}
+              <div className="wf-annotation" style={{ marginTop: 4 }}>Remaining: £0.00</div>
+            </div>
+          )}
+
+          {split === '% Share' && (
+            <div style={{ marginTop: 8 }}>
+              {sel.map((i, idx) => (
+                <div key={i} className="wf-split-row">
+                  <Avatar idx={i} size={22} />
+                  <span className="wf-split-name">{PEOPLE[i].name}</span>
+                  <div className="wf-pill-num">{idx === 0 ? '47%' : idx === 1 ? '29%' : '24%'}</div>
+                  <span className="wf-split-val">£{(84.5 * (idx === 0 ? 0.47 : idx === 1 ? 0.29 : 0.24)).toFixed(2)}</span>
+                </div>
+              ))}
+              <div className="wf-annotation" style={{ marginTop: 4 }}>Total: 100%</div>
+            </div>
+          )}
+
+          {split === 'Custom' && (
+            <div style={{ marginTop: 8 }}>
+              {sel.map((i, idx) => (
+                <div key={i} className="wf-split-row">
+                  <Avatar idx={i} size={22} />
+                  <span className="wf-split-name">{PEOPLE[i].name}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <span className="wf-annotation">×</span>
+                    <div className="wf-pill-num">{idx === 0 ? '2' : '1'}</div>
+                  </div>
+                  <span className="wf-split-val">£{(84.5 * (idx === 0 ? 2 : 1) / (sel.length + 1)).toFixed(2)}</span>
+                </div>
+              ))}
+              <div className="wf-note" style={{ marginTop: 8 }}>Shares: tap ＋/− to adjust weight</div>
+            </div>
+          )}
+        </div>
+
+        <div className="wf-spacer" />
+      </div>
+
+      <div className="wf-bottom-bar">
+        <button className="wf-btn accent" style={{ width: '100%', padding: '10px', fontSize: 18 }}>Save Expense</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Variant B: Wizard / Stepper ─────────────────────────────────
+function VariantB() {
+  const [step, setStep] = React.useState(1);
+  const [sel, setSel] = React.useState([0, 1, 2]);
+  const [split, setSplit] = React.useState('even');
+  const toggle = (i) => setSel(s => s.includes(i) ? s.filter(x => x !== i) : [...s, i]);
+
+  const STEPS = ['People', 'Details', 'Paid by', 'Split'];
+
+  return (
+    <div className="wf-screen">
+      <div className="wf-nav">
+        <button className="wf-btn" onClick={() => step > 1 ? setStep(s => s - 1) : null}>
+          {step === 1 ? '✕' : '← Back'}
+        </button>
+        <span className="wf-nav-title">Add Expense</span>
+        <span className="wf-annotation">{step} / {STEPS.length}</span>
+      </div>
+
+      {/* Step indicator */}
+      <div className="wf-step-indicator">
+        {STEPS.map((s, i) => (
+          <React.Fragment key={i}>
+            <div className={`wf-step-dot${step > i + 1 ? ' done' : step === i + 1 ? ' active' : ''}`}
+              onClick={() => i + 1 < step ? setStep(i + 1) : null}
+              style={{ cursor: i + 1 < step ? 'pointer' : 'default' }}>
+              {step > i + 1 ? '✓' : i + 1}
+            </div>
+            {i < STEPS.length - 1 && <div className={`wf-step-line${step > i + 1 ? ' done' : ''}`} />}
+          </React.Fragment>
+        ))}
+      </div>
+
+      {/* Step label */}
+      <div style={{ padding: '10px 14px 0', flexShrink: 0 }}>
+        <div style={{ fontFamily: 'Caveat', fontSize: 22, fontWeight: 700, color: '#1a1a1a' }}>{STEPS[step - 1]}</div>
+        <div className="wf-annotation">
+          {step === 1 && 'Select everyone involved in this expense'}
+          {step === 2 && 'What was this expense for?'}
+          {step === 3 && 'Who paid?'}
+          {step === 4 && 'How should this be split?'}
+        </div>
+      </div>
+
+      <div className="wf-body">
+        {step === 1 && (
+          <div className="wf-section">
+            {PEOPLE.map((p, i) => (
+              <div key={i} className="wf-payer-row" style={{ padding: '10px 8px', border: '2px solid', borderColor: sel.includes(i) ? '#1a1a1a' : '#ddd', borderRadius: 4, marginBottom: 6, background: sel.includes(i) ? '#f0ede8' : 'transparent' }}
+                onClick={() => toggle(i)}>
+                <Avatar idx={i} size={30} />
+                <span style={{ flex: 1, fontFamily: 'Caveat', fontSize: 18, fontWeight: 600 }}>{p.name}</span>
+                <div className="wf-split-check" style={{ background: sel.includes(i) ? '#1a1a1a' : 'transparent', color: '#fff' }}>
+                  {sel.includes(i) && '✓'}
+                </div>
+              </div>
+            ))}
+            <button className="wf-chip add-chip" style={{ width: '100%', justifyContent: 'center', padding: 10 }}>＋ Add someone new</button>
+          </div>
+        )}
+
+        {step === 2 && (
+          <div className="wf-section" style={{ gap: 12 }}>
+            <div>
+              <div className="wf-label">Description</div>
+              <input className="wf-input" placeholder="e.g. Dinner, Taxi, Hotel..." style={{ fontSize: 20, padding: 10 }} />
+            </div>
+            <div>
+              <div className="wf-label">Amount</div>
+              <div className="wf-amount-hero">
+                <div className="wf-currency-pill" style={{ fontSize: 18 }}>£</div>
+                <input className="wf-amount-input" placeholder="0.00" defaultValue="84.50" style={{ fontSize: 32 }} />
+              </div>
+            </div>
+            <div>
+              <div className="wf-label">Date</div>
+              <input className="wf-input" placeholder="Today, 3 May 2026" />
+            </div>
+            <div>
+              <div className="wf-label">Category</div>
+              <div className="wf-chips">
+                {['🍽 Food', '🚕 Travel', '🏨 Stay', '🛒 Shop', '🎬 Fun'].map(c => (
+                  <button key={c} className={`wf-chip${c.includes('Food') ? ' selected' : ''}`}>{c}</button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {step === 3 && (
+          <div className="wf-section" style={{ gap: 10 }}>
+            <div className="wf-note">Who put money in for this expense?</div>
+            {sel.map(i => (
+              <div key={i} className="wf-payer-row" style={{ padding: '8px 4px' }}>
+                <Avatar idx={i} size={28} />
+                <span className="wf-payer-name">{PEOPLE[i].name}</span>
+                <input className="wf-payer-amount" placeholder="£0.00" defaultValue={i === 0 ? '84.50' : ''} />
+              </div>
+            ))}
+            <div className="wf-annotation">Leave blank if someone didn't pay</div>
+            <div style={{ padding: '6px 0' }}>
+              <div className="wf-row" style={{ justifyContent: 'space-between' }}>
+                <span className="wf-annotation">Total entered:</span>
+                <span style={{ fontFamily: 'DM Mono', fontSize: 16 }}>£84.50</span>
+              </div>
+              <div className="wf-row" style={{ justifyContent: 'space-between', marginTop: 4 }}>
+                <span className="wf-annotation">Remaining:</span>
+                <span style={{ fontFamily: 'DM Mono', fontSize: 16, color: '#4a7c59' }}>£0.00 ✓</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {step === 4 && (
+          <div className="wf-section" style={{ gap: 10 }}>
+            <div className="wf-tabs">
+              {['Even', 'Exact £', 'Percent', 'Shares'].map(t => (
+                <button key={t} className={`wf-tab${split === t ? ' active' : ''}`} onClick={() => setSplit(t)}>{t}</button>
+              ))}
+            </div>
+            {sel.map((i, idx) => (
+              <div key={i} className="wf-payer-row" style={{ padding: '8px 4px' }}>
+                <Avatar idx={i} size={26} />
+                <span className="wf-payer-name">{PEOPLE[i].name}</span>
+                {split === 'Even' && <span className="wf-split-val">£{(84.5 / sel.length).toFixed(2)}</span>}
+                {split === 'Exact £' && <input className="wf-payer-amount" defaultValue={idx === 0 ? '30.00' : idx === 1 ? '30.00' : '24.50'} />}
+                {split === 'Percent' && (
+                  <div className="wf-row" style={{ gap: 6 }}>
+                    <div className="wf-pill-num">{idx === 0 ? '33%' : idx === 1 ? '33%' : '34%'}</div>
+                    <span className="wf-split-val">£{(84.5 / sel.length).toFixed(2)}</span>
+                  </div>
+                )}
+                {split === 'Shares' && (
+                  <div className="wf-row" style={{ gap: 6 }}>
+                    <button className="wf-btn" style={{ padding: '2px 8px', fontSize: 16 }}>−</button>
+                    <div className="wf-pill-num">{idx === 0 ? '2 shares' : '1 share'}</div>
+                    <button className="wf-btn" style={{ padding: '2px 8px', fontSize: 16 }}>＋</button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="wf-bottom-bar">
+        {step < STEPS.length
+          ? <button className="wf-btn accent" style={{ width: '100%', padding: '10px', fontSize: 18 }} onClick={() => setStep(s => s + 1)}>
+              Continue →
+            </button>
+          : <button className="wf-btn accent" style={{ width: '100%', padding: '10px', fontSize: 18 }}>
+              Save Expense ✓
+            </button>
+        }
+      </div>
+    </div>
+  );
+}
+
+// ─── Variant C: Card Accordion ────────────────────────────────────
+function VariantC() {
+  const [open, setOpen] = React.useState('amount');
+  const [sel, setSel] = React.useState([0, 1, 2]);
+  const [split, setSplit] = React.useState('even');
+  const toggle = (i) => setSel(s => s.includes(i) ? s.filter(x => x !== i) : [...s, i]);
+
+  const sections = [
+    {
+      id: 'people',
+      title: 'Who\'s involved',
+      preview: sel.map(i => PEOPLE[i].name).join(', '),
+      body: (
+        <div className="wf-chips">
+          {PEOPLE.slice(0, 4).map((p, i) => (
+            <button key={i} className={`wf-chip${sel.includes(i) ? ' selected' : ''}`} onClick={() => toggle(i)}>
+              <Avatar idx={i} size={20} />{p.name}
+            </button>
+          ))}
+          <button className="wf-chip add-chip">＋</button>
+        </div>
+      )
+    },
+    {
+      id: 'amount',
+      title: 'Amount',
+      preview: '£84.50',
+      body: (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <input className="wf-input" placeholder="Description" defaultValue="Dinner at Nobu" />
+          <div className="wf-amount-hero">
+            <div className="wf-currency-pill">£ GBP</div>
+            <input className="wf-amount-input" defaultValue="84.50" />
+          </div>
+          <input className="wf-input" placeholder="Date" defaultValue="Today, 3 May" style={{ fontSize: 15 }} />
+        </div>
+      )
+    },
+    {
+      id: 'paidby',
+      title: 'Paid by',
+      preview: 'Alex',
+      body: (
+        <div>
+          {sel.map(i => (
+            <div key={i} className="wf-payer-row">
+              <Avatar idx={i} size={24} />
+              <span className="wf-payer-name">{PEOPLE[i].name}</span>
+              <input className="wf-payer-amount" placeholder="£0.00" defaultValue={i === 0 ? '84.50' : ''} />
+            </div>
+          ))}
+          <div className="wf-annotation" style={{ marginTop: 6 }}>Leave blank if not a payer</div>
+        </div>
+      )
+    },
+    {
+      id: 'split',
+      title: 'Split method',
+      preview: 'Evenly ÷ 3',
+      body: (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div className="wf-tabs">
+            {['Even', 'Amounts', '%', 'Shares'].map(t => (
+              <button key={t} className={`wf-tab${split === t ? ' active' : ''}`} onClick={() => setSplit(t)}>{t}</button>
+            ))}
+          </div>
+          {sel.map((i, idx) => (
+            <div key={i} className="wf-split-row">
+              <Avatar idx={i} size={22} />
+              <span className="wf-split-name">{PEOPLE[i].name}</span>
+              {split === 'Even' && <span className="wf-split-val">£{(84.5 / sel.length).toFixed(2)}</span>}
+              {split === 'Amounts' && <input className="wf-payer-amount" defaultValue={idx === 0 ? '40.00' : idx === 1 ? '24.50' : '20.00'} />}
+              {split === '%' && <div className="wf-pill-num">{idx === 0 ? '33%' : idx === 1 ? '33%' : '34%'}</div>}
+              {split === 'Shares' && (
+                <div className="wf-row" style={{ gap: 4 }}>
+                  <button className="wf-btn" style={{ padding: '0 8px', fontSize: 18 }}>−</button>
+                  <div className="wf-pill-num">1</div>
+                  <button className="wf-btn" style={{ padding: '0 8px', fontSize: 18 }}>＋</button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )
+    }
+  ];
+
+  return (
+    <div className="wf-screen">
+      <div className="wf-nav">
+        <button className="wf-btn">✕</button>
+        <span className="wf-nav-title">Add Expense</span>
+        <button className="wf-btn primary">Save</button>
+      </div>
+
+      <div className="wf-body">
+        {sections.map(s => (
+          <div key={s.id} className="wf-card">
+            <div className="wf-card-header" onClick={() => setOpen(open === s.id ? null : s.id)}>
+              <div>
+                <div className="wf-card-title">{s.title}</div>
+                {open !== s.id && <div className="wf-card-preview">{s.preview}</div>}
+              </div>
+              <div className="wf-card-arrow">{open === s.id ? '▲' : '▼'}</div>
+            </div>
+            {open === s.id && (
+              <div className="wf-card-body">{s.body}</div>
+            )}
+          </div>
+        ))}
+        <div className="wf-annotation" style={{ textAlign: 'center' }}>All sections filled ✓ ready to save</div>
+      </div>
+
+      <div className="wf-bottom-bar">
+        <button className="wf-btn accent" style={{ width: '100%', padding: '10px', fontSize: 18 }}>Save Expense</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Variant D: Bottom-Sheet Hub ─────────────────────────────────
+function VariantD() {
+  const [sheet, setSheet] = React.useState(null);
+  const [sel, setSel] = React.useState([0, 1, 2]);
+  const [splitMode, setSplitMode] = React.useState('even');
+  const toggle = (i) => setSel(s => s.includes(i) ? s.filter(x => x !== i) : [...s, i]);
+
+  const ROWS = [
+    { key: 'people', icon: '👥', label: 'People', val: sel.map(i => PEOPLE[i].name).join(', ') },
+    { key: 'desc',   icon: '📝', label: 'Description', val: 'Dinner at Nobu' },
+    { key: 'amount', icon: '💰', label: 'Amount', val: '£84.50 · GBP' },
+    { key: 'paidby', icon: '🧾', label: 'Paid by', val: 'Alex (£84.50)' },
+    { key: 'split',  icon: '⚖️', label: 'Split', val: `Even ÷ ${sel.length} · £${(84.5/sel.length).toFixed(2)} each` },
+  ];
+
+  return (
+    <div className="wf-screen" style={{ position: 'relative' }}>
+      <div className="wf-nav">
+        <button className="wf-btn">✕</button>
+        <span className="wf-nav-title">Add Expense</span>
+        <button className="wf-btn primary">Save</button>
+      </div>
+
+      {/* Summary list */}
+      <div className="wf-body" style={{ gap: 0 }}>
+        {ROWS.map((r, i) => (
+          <div key={r.key}
+            onClick={() => setSheet(sheet === r.key ? null : r.key)}
+            style={{
+              display: 'flex', alignItems: 'flex-start', gap: 10,
+              padding: '12px 4px',
+              borderBottom: i < ROWS.length - 1 ? '1.5px solid #e8e4de' : 'none',
+              cursor: 'pointer',
+              background: sheet === r.key ? '#f0ede8' : 'transparent',
+              borderRadius: 4,
+              transition: 'background 0.15s'
+            }}>
+            <span style={{ fontSize: 22, lineHeight: 1 }}>{r.icon}</span>
+            <div style={{ flex: 1 }}>
+              <div className="wf-label" style={{ fontSize: 11 }}>{r.label}</div>
+              <div style={{ fontFamily: 'Caveat', fontSize: 17, color: '#1a1a1a', marginTop: 2 }}>{r.val}</div>
+            </div>
+            <div style={{ fontFamily: 'Caveat', fontSize: 18, color: '#bbb', marginTop: 2 }}>›</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Inline bottom sheet */}
+      {sheet && (
+        <div style={{
+          position: 'absolute', bottom: 0, left: 0, right: 0,
+          background: '#faf9f7',
+          border: '2px solid #1a1a1a',
+          borderBottom: 'none',
+          borderRadius: '10px 10px 0 0',
+          maxHeight: '65%',
+          display: 'flex', flexDirection: 'column',
+          boxShadow: '0 -4px 20px rgba(0,0,0,0.12)'
+        }}>
+          <div className="wf-handle" />
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 14px 10px' }}>
+            <div style={{ fontFamily: 'Caveat', fontSize: 20, fontWeight: 700 }}>
+              {ROWS.find(r => r.key === sheet)?.label}
+            </div>
+            <button className="wf-btn" style={{ fontSize: 14 }} onClick={() => setSheet(null)}>Done ✓</button>
+          </div>
+
+          <div style={{ overflowY: 'auto', padding: '0 14px 20px', flex: 1 }}>
+            {sheet === 'people' && (
+              <div className="wf-chips">
+                {PEOPLE.slice(0, 4).map((p, i) => (
+                  <button key={i} className={`wf-chip${sel.includes(i) ? ' selected' : ''}`} onClick={() => toggle(i)}>
+                    <Avatar idx={i} size={20} />{p.name}
+                  </button>
+                ))}
+                <button className="wf-chip add-chip">＋ Add</button>
+              </div>
+            )}
+            {sheet === 'desc' && (
+              <input className="wf-input" placeholder="What was this expense?" defaultValue="Dinner at Nobu" style={{ fontSize: 20 }} />
+            )}
+            {sheet === 'amount' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div className="wf-amount-hero">
+                  <div className="wf-currency-pill">£ GBP</div>
+                  <input className="wf-amount-input" defaultValue="84.50" style={{ fontSize: 30 }} />
+                </div>
+                <div className="wf-annotation">Tap currency code to change</div>
+              </div>
+            )}
+            {sheet === 'paidby' && (
+              <div>
+                {sel.map(i => (
+                  <div key={i} className="wf-payer-row">
+                    <Avatar idx={i} size={26} />
+                    <span className="wf-payer-name">{PEOPLE[i].name}</span>
+                    <input className="wf-payer-amount" placeholder="£0.00" defaultValue={i === 0 ? '84.50' : ''} />
+                  </div>
+                ))}
+              </div>
+            )}
+            {sheet === 'split' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div className="wf-tabs">
+                  {['Even', 'Amounts', '%', 'Shares'].map(t => (
+                    <button key={t} className={`wf-tab${splitMode === t ? ' active' : ''}`} onClick={() => setSplitMode(t)}>{t}</button>
+                  ))}
+                </div>
+                {sel.map((i, idx) => (
+                  <div key={i} className="wf-split-row">
+                    <Avatar idx={i} size={22} />
+                    <span className="wf-split-name">{PEOPLE[i].name}</span>
+                    {splitMode === 'Even' && <span className="wf-split-val">£{(84.5 / sel.length).toFixed(2)}</span>}
+                    {splitMode === 'Amounts' && <input className="wf-payer-amount" defaultValue={idx === 0 ? '40.00' : idx === 1 ? '24.50' : '20.00'} />}
+                    {splitMode === '%' && <div className="wf-pill-num">{idx === 0 ? '47%' : idx === 1 ? '29%' : '24%'}</div>}
+                    {splitMode === 'Shares' && (
+                      <div className="wf-row" style={{ gap: 4 }}>
+                        <button className="wf-btn" style={{ padding: '0 8px', fontSize: 18 }}>−</button>
+                        <div className="wf-pill-num">{idx === 0 ? '2' : '1'}</div>
+                        <button className="wf-btn" style={{ padding: '0 8px', fontSize: 18 }}>＋</button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div className="wf-bottom-bar" style={{ borderTop: sheet ? 'none' : '2px solid #1a1a1a' }}>
+        {!sheet && <button className="wf-btn accent" style={{ width: '100%', padding: '10px', fontSize: 18 }}>Save Expense</button>}
+      </div>
+    </div>
+  );
+}
+
+// ─── Variant E: Hybrid A+B (single screen + drill-down detail screens) ───────
+function VariantE({ initScreen = 'main', initPayerMode = 'one', initSplitMode = 'even' }) {
+  // nav stack: 'main' | 'paidby' | 'split'
+  const [screen, setScreen] = React.useState(initScreen);
+  const [animDir, setAnimDir] = React.useState(initScreen === 'main' ? 1 : 1);
+
+  const [sel, setSel] = React.useState([0, 1, 2]);
+  // paidby state
+  const [payerMode, setPayerMode] = React.useState(initPayerMode);
+  const [singlePayer, setSinglePayer] = React.useState(0);
+  const [multiAmounts, setMultiAmounts] = React.useState({ 0: '50.00', 1: '34.50', 2: '' });
+  // split state
+  const [splitMode, setSplitMode] = React.useState(initSplitMode);
+  const [splitAmounts, setSplitAmounts] = React.useState({ 0: '28.17', 1: '28.17', 2: '28.16' });
+  const [splitPct, setSplitPct] = React.useState({ 0: '33', 1: '33', 2: '34' });
+  const [splitShares, setSplitShares] = React.useState({ 0: 2, 1: 1, 2: 1 });
+
+  // items state
+  const [items, setItems] = React.useState([]);
+  const [receiptState, setReceiptState] = React.useState('empty'); // 'empty'|'scanning'|'done'
+
+  const TOTAL = 84.50;
+
+  const toggleSel = (i) => setSel(s => s.includes(i) ? s.filter(x => x !== i) : [...s, i]);
+
+  function addItem() {
+    setItems(prev => [...prev, { id: Date.now(), name: '', amount: '' }]);
+  }
+  function updateItem(id, field, val) {
+    setItems(prev => prev.map(it => it.id === id ? { ...it, [field]: val } : it));
+  }
+  function removeItem(id) {
+    setItems(prev => prev.filter(it => it.id !== id));
+  }
+  function simulateScan() {
+    setReceiptState('scanning');
+    setTimeout(() => {
+      setItems([
+        { id: 1, name: 'Tuna tartare', amount: '18.00' },
+        { id: 2, name: 'Black cod miso', amount: '42.00' },
+        { id: 3, name: 'Edamame', amount: '6.50' },
+        { id: 4, name: 'House cocktails ×2', amount: '28.00' },
+        { id: 5, name: 'Service charge', amount: '9.45' },
+      ]);
+      setReceiptState('done');
+    }, 1800);
+  }
+  const itemsTotal = items.reduce((a, it) => a + (parseFloat(it.amount) || 0), 0);
+
+  function navigate(to) {
+    setAnimDir(1);
+    setScreen(to);
+  }
+  function goBack() {
+    setAnimDir(-1);
+    setScreen('main');
+  }
+
+  // Summaries shown on main screen
+  function payerSummary() {
+    if (payerMode === 'one') return PEOPLE[singlePayer].name;
+    const payers = sel.filter(i => multiAmounts[i] && parseFloat(multiAmounts[i]) > 0);
+    if (payers.length === 0) return 'Nobody yet';
+    return payers.map(i => `${PEOPLE[i].name} £${parseFloat(multiAmounts[i]).toFixed(2)}`).join(', ');
+  }
+
+  function splitSummary() {
+    if (splitMode === 'even') return `Even ÷ ${sel.length} · £${(TOTAL / sel.length).toFixed(2)} each`;
+    if (splitMode === 'amounts') return 'Custom amounts';
+    if (splitMode === 'percent') return 'By percentage';
+    if (splitMode === 'shares') {
+      const total = sel.reduce((a, i) => a + (splitShares[i] || 1), 0);
+      return `By shares (${total} total)`;
+    }
+    return '';
+  }
+
+  // Slide animation wrapper
+  const slideStyle = {
+    position: 'absolute', inset: 0,
+    display: 'flex', flexDirection: 'column',
+    background: '#faf9f7',
+    animation: `slideIn${animDir > 0 ? 'Right' : 'Left'} 0.22s ease both`,
+  };
+
+  // ── Main screen ──
+  const MainScreen = (
+    <div style={slideStyle} key={`main-${screen === 'main'}`}>
+      <div className="wf-nav">
+        <button className="wf-btn">✕ Cancel</button>
+        <span className="wf-nav-title">Add Expense</span>
+        <button className="wf-btn primary">Save</button>
+      </div>
+
+      <div className="wf-body">
+        {/* Participants */}
+        <div className="wf-section">
+          <div className="wf-label">Who's involved</div>
+          <div className="wf-chips">
+            {PEOPLE.slice(0, 4).map((p, i) => (
+              <button key={i} className={`wf-chip${sel.includes(i) ? ' selected' : ''}`} onClick={() => toggleSel(i)}>
+                <Avatar idx={i} size={20} />{p.name}
+              </button>
+            ))}
+            <button className="wf-chip add-chip">＋ Add</button>
+          </div>
+        </div>
+
+        <div className="wf-divider" />
+
+        {/* Description */}
+        <div className="wf-section">
+          <div className="wf-label">Description</div>
+          <input className="wf-input" placeholder="e.g. Dinner at Nobu" defaultValue="" />
+        </div>
+
+        {/* Amount */}
+        <div className="wf-section">
+          <div className="wf-label">Amount</div>
+          <div className="wf-amount-hero">
+            <div className="wf-currency-pill">£ GBP</div>
+            <input className="wf-amount-input" placeholder="0.00" defaultValue="84.50" />
+          </div>
+          {/* Add items button */}
+          <button
+            onClick={() => navigate('items')}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              marginTop: 6,
+              fontFamily: 'Caveat', fontSize: 15, fontWeight: 600,
+              padding: '6px 12px',
+              border: '1.5px dashed #999',
+              borderRadius: 3,
+              background: 'transparent',
+              color: '#555',
+              cursor: 'pointer',
+              alignSelf: 'flex-start',
+            }}>
+            <span style={{ fontSize: 16 }}>🧾</span>
+            {items.length > 0 ? `${items.length} item${items.length !== 1 ? 's' : ''} · £${itemsTotal.toFixed(2)}` : 'Add items from receipt'}
+          </button>
+        </div>
+
+        <div className="wf-divider" />
+
+        {/* Paid by — tappable row */}
+        <div className="wf-section">
+          <div className="wf-label">Paid by</div>
+          <div
+            onClick={() => navigate('paidby')}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 10,
+              padding: '10px 12px',
+              border: '2px solid #1a1a1a', borderRadius: 4,
+              cursor: 'pointer', background: '#faf9f7',
+            }}>
+            {/* Avatars of payers */}
+            <div style={{ display: 'flex', gap: -4 }}>
+              {payerMode === 'one'
+                ? <Avatar idx={singlePayer} size={26} />
+                : sel.filter(i => multiAmounts[i]).slice(0, 3).map(i => <Avatar key={i} idx={i} size={26} />)
+              }
+            </div>
+            <span style={{ flex: 1, fontFamily: 'Caveat', fontSize: 16 }}>{payerSummary()}</span>
+            <span style={{ fontFamily: 'Caveat', fontSize: 20, color: '#999' }}>›</span>
+          </div>
+          <div className="wf-annotation">Tap to change who paid or split the bill</div>
+        </div>
+
+        {/* Split method — tappable row */}
+        <div className="wf-section">
+          <div className="wf-label">Split method</div>
+          <div
+            onClick={() => navigate('split')}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 10,
+              padding: '10px 12px',
+              border: '2px solid #1a1a1a', borderRadius: 4,
+              cursor: 'pointer', background: '#faf9f7',
+            }}>
+            <span style={{ fontSize: 20 }}>
+              {splitMode === 'even' ? '⚖️' : splitMode === 'amounts' ? '💰' : splitMode === 'percent' ? '%' : '🔢'}
+            </span>
+            <span style={{ flex: 1, fontFamily: 'Caveat', fontSize: 16 }}>{splitSummary()}</span>
+            <span style={{ fontFamily: 'Caveat', fontSize: 20, color: '#999' }}>›</span>
+          </div>
+          <div className="wf-annotation">Tap to customise the split</div>
+        </div>
+
+        <div className="wf-spacer" />
+      </div>
+
+      <div className="wf-bottom-bar">
+        <button className="wf-btn accent" style={{ width: '100%', padding: '10px', fontSize: 18 }}>Save Expense</button>
+      </div>
+    </div>
+  );
+
+  // ── Items screen ──
+  const ItemsScreen = (
+    <div style={slideStyle} key="items">
+      <div className="wf-nav">
+        <button className="wf-btn" onClick={goBack}>← Back</button>
+        <span className="wf-nav-title">Items</span>
+        <button className="wf-btn primary" onClick={goBack}>Done</button>
+      </div>
+
+      <div className="wf-body">
+
+        {/* Receipt upload zone */}
+        <div className="wf-section">
+          <div className="wf-label">Receipt</div>
+          {receiptState === 'empty' && (
+            <div
+              onClick={simulateScan}
+              style={{
+                border: '2px dashed #999', borderRadius: 4,
+                padding: '24px 16px',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+                cursor: 'pointer', background: '#f7f5f2',
+              }}>
+              {/* Placeholder image icon */}
+              <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="4" y="8" width="40" height="32" rx="3" stroke="#bbb" strokeWidth="2" fill="#eee"/>
+                <rect x="8" y="12" width="32" height="3" rx="1" fill="#ccc"/>
+                <rect x="8" y="18" width="24" height="2" rx="1" fill="#ddd"/>
+                <rect x="8" y="23" width="28" height="2" rx="1" fill="#ddd"/>
+                <rect x="8" y="28" width="20" height="2" rx="1" fill="#ddd"/>
+                <rect x="8" y="33" width="32" height="2" rx="1" fill="#ccc"/>
+                <circle cx="38" cy="14" r="6" fill="#f0ede8" stroke="#bbb" strokeWidth="1.5"/>
+                <path d="M35 14 L38 11 L41 14" stroke="#999" strokeWidth="1.5" strokeLinecap="round"/>
+                <path d="M38 11 L38 17" stroke="#999" strokeWidth="1.5" strokeLinecap="round"/>
+              </svg>
+              <div style={{ fontFamily: 'Caveat', fontSize: 17, fontWeight: 700, color: '#444' }}>
+                Tap to photograph receipt
+              </div>
+              <div className="wf-annotation" style={{ textAlign: 'center' }}>
+                We'll scan it and pull out the line items automatically
+              </div>
+              <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                <button className="wf-btn" style={{ fontSize: 13, padding: '3px 10px' }}>📷 Camera</button>
+                <button className="wf-btn" style={{ fontSize: 13, padding: '3px 10px' }}>🖼 Library</button>
+              </div>
+            </div>
+          )}
+
+          {receiptState === 'scanning' && (
+            <div style={{
+              border: '2px dashed #4a7c59', borderRadius: 4,
+              padding: '24px 16px',
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10,
+              background: '#f0f5f1',
+            }}>
+              {/* Animated scan lines placeholder */}
+              <div style={{ position: 'relative', width: 60, height: 60 }}>
+                <svg width="60" height="60" viewBox="0 0 60 60">
+                  <rect x="4" y="4" width="52" height="52" rx="4" stroke="#4a7c59" strokeWidth="2" fill="none" strokeDasharray="6 3">
+                    <animate attributeName="stroke-dashoffset" from="0" to="18" dur="0.8s" repeatCount="indefinite"/>
+                  </rect>
+                  <line x1="4" y1="30" x2="56" y2="30" stroke="#4a7c59" strokeWidth="2" opacity="0.6">
+                    <animate attributeName="y1" values="10;50;10" dur="1.2s" repeatCount="indefinite"/>
+                    <animate attributeName="y2" values="10;50;10" dur="1.2s" repeatCount="indefinite"/>
+                  </line>
+                </svg>
+              </div>
+              <div style={{ fontFamily: 'Caveat', fontSize: 17, fontWeight: 700, color: '#4a7c59' }}>
+                Scanning receipt…
+              </div>
+              <div className="wf-annotation">Identifying line items</div>
+            </div>
+          )}
+
+          {receiptState === 'done' && (
+            <div style={{
+              border: '2px solid #4a7c59', borderRadius: 4,
+              padding: '10px 12px',
+              display: 'flex', alignItems: 'center', gap: 10,
+              background: '#f0f5f1',
+              cursor: 'pointer',
+            }}
+            onClick={() => setReceiptState('empty')}>
+              {/* Striped receipt placeholder */}
+              <div style={{
+                width: 44, height: 54, flexShrink: 0, borderRadius: 3,
+                background: 'repeating-linear-gradient(0deg, #d4e8d0 0px, #d4e8d0 3px, #e8f3e5 3px, #e8f3e5 7px)',
+                border: '1.5px solid #4a7c59',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 20
+              }}>🧾</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontFamily: 'Caveat', fontSize: 16, fontWeight: 700, color: '#2d5a3d' }}>Receipt scanned ✓</div>
+                <div className="wf-annotation">{items.length} items detected · tap to rescan</div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Line items list */}
+        <div className="wf-section">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div className="wf-label">Line items</div>
+            <button className="wf-btn" style={{ fontSize: 13, padding: '2px 10px' }} onClick={addItem}>＋ Add</button>
+          </div>
+
+          {items.length === 0 && (
+            <div className="wf-annotation" style={{ padding: '12px 0', textAlign: 'center' }}>
+              No items yet — scan a receipt or add manually
+            </div>
+          )}
+
+          {items.map((item, idx) => (
+            <div key={item.id} style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              padding: '8px 0',
+              borderBottom: '1.5px dashed #ddd',
+            }}>
+              <div style={{
+                fontFamily: 'DM Mono', fontSize: 12, color: '#bbb',
+                width: 18, flexShrink: 0, textAlign: 'right'
+              }}>{idx + 1}</div>
+              <input
+                className="wf-input"
+                style={{ flex: 1, fontSize: 15, padding: '5px 8px', border: '1.5px solid #ddd' }}
+                placeholder="Item name"
+                value={item.name}
+                onChange={e => updateItem(item.id, 'name', e.target.value)}
+              />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0 }}>
+                <span style={{ fontFamily: 'Caveat', fontSize: 14, color: '#888' }}>£</span>
+                <input
+                  className="wf-payer-amount"
+                  style={{ width: 68, fontSize: 15 }}
+                  placeholder="0.00"
+                  value={item.amount}
+                  onChange={e => updateItem(item.id, 'amount', e.target.value)}
+                />
+              </div>
+              <button
+                onClick={() => removeItem(item.id)}
+                style={{ fontFamily: 'Caveat', fontSize: 18, color: '#bbb', background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px', lineHeight: 1 }}>
+                ✕
+              </button>
+            </div>
+          ))}
+
+          {/* Totals reconciliation */}
+          {items.length > 0 && (
+            <div style={{ marginTop: 8, padding: '8px 0', display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <div className="wf-row" style={{ justifyContent: 'space-between' }}>
+                <span className="wf-annotation">Items total</span>
+                <span style={{ fontFamily: 'DM Mono', fontSize: 15 }}>£{itemsTotal.toFixed(2)}</span>
+              </div>
+              <div className="wf-row" style={{ justifyContent: 'space-between' }}>
+                <span className="wf-annotation">Expense total</span>
+                <span style={{ fontFamily: 'DM Mono', fontSize: 15 }}>£{TOTAL.toFixed(2)}</span>
+              </div>
+              <div className="wf-divider" />
+              {Math.abs(itemsTotal - TOTAL) < 0.01
+                ? <div className="wf-note" style={{ borderColor: '#4a7c59', background: '#f0f5f1' }}>✓ Items match the total</div>
+                : <div className="wf-note">
+                    Difference: £{Math.abs(itemsTotal - TOTAL).toFixed(2)}
+                    {itemsTotal < TOTAL ? ' — some spend unaccounted' : ' — items exceed total'}
+                  </div>
+              }
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  // ── Paid by detail screen ──
+  const PayerScreen = (
+    <div style={slideStyle} key="paidby">
+      <div className="wf-nav">
+        <button className="wf-btn" onClick={goBack}>← Back</button>
+        <span className="wf-nav-title">Paid by</span>
+        <button className="wf-btn primary" onClick={goBack}>Done</button>
+      </div>
+
+      <div className="wf-body">
+        <div className="wf-note">Who paid for this expense? You can split payment between multiple people.</div>
+
+        <div className="wf-section">
+          <div className="wf-label">Payment type</div>
+          <div className="wf-toggle">
+            <div className={`wf-toggle-opt${payerMode === 'one' ? ' on' : ''}`} onClick={() => setPayerMode('one')}>One person</div>
+            <div className={`wf-toggle-opt${payerMode === 'multi' ? ' on' : ''}`} onClick={() => setPayerMode('multi')}>Multiple payers</div>
+          </div>
+        </div>
+
+        {payerMode === 'one' && (
+          <div className="wf-section">
+            <div className="wf-label">Who paid?</div>
+            {sel.map(i => (
+              <div key={i}
+                onClick={() => setSinglePayer(i)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  padding: '10px 12px',
+                  border: '2px solid', borderColor: singlePayer === i ? '#1a1a1a' : '#ddd',
+                  borderRadius: 4, marginBottom: 6,
+                  background: singlePayer === i ? '#f0ede8' : 'transparent',
+                  cursor: 'pointer',
+                }}>
+                <Avatar idx={i} size={28} />
+                <span style={{ flex: 1, fontFamily: 'Caveat', fontSize: 18, fontWeight: 600 }}>{PEOPLE[i].name}</span>
+                <div className="wf-split-check" style={{ background: singlePayer === i ? '#1a1a1a' : 'transparent', color: '#fff' }}>
+                  {singlePayer === i && '✓'}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {payerMode === 'multi' && (
+          <div className="wf-section">
+            <div className="wf-label">Enter each person's contribution</div>
+            {sel.map(i => (
+              <div key={i} className="wf-payer-row" style={{ padding: '10px 4px' }}>
+                <Avatar idx={i} size={28} />
+                <span className="wf-payer-name" style={{ fontSize: 18 }}>{PEOPLE[i].name}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <span style={{ fontFamily: 'Caveat', fontSize: 16, color: '#888' }}>£</span>
+                  <input
+                    className="wf-payer-amount"
+                    placeholder="0.00"
+                    value={multiAmounts[i] || ''}
+                    onChange={e => setMultiAmounts(a => ({ ...a, [i]: e.target.value }))}
+                  />
+                </div>
+              </div>
+            ))}
+            <div className="wf-divider" />
+            <div className="wf-row" style={{ justifyContent: 'space-between', padding: '4px 0' }}>
+              <span className="wf-annotation">Total entered</span>
+              <span style={{ fontFamily: 'DM Mono', fontSize: 16 }}>
+                £{sel.reduce((a, i) => a + (parseFloat(multiAmounts[i]) || 0), 0).toFixed(2)}
+              </span>
+            </div>
+            <div className="wf-row" style={{ justifyContent: 'space-between', padding: '2px 0' }}>
+              <span className="wf-annotation">Expense total</span>
+              <span style={{ fontFamily: 'DM Mono', fontSize: 16 }}>£{TOTAL.toFixed(2)}</span>
+            </div>
+            {Math.abs(sel.reduce((a, i) => a + (parseFloat(multiAmounts[i]) || 0), 0) - TOTAL) < 0.01
+              ? <div className="wf-note" style={{ borderColor: '#4a7c59', background: '#f0f5f1', marginTop: 4 }}>✓ Amounts match the total</div>
+              : <div className="wf-note" style={{ marginTop: 4 }}>Amounts must add up to £{TOTAL.toFixed(2)}</div>
+            }
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  // ── Split detail screen ──
+  const SplitScreen = (
+    <div style={slideStyle} key="split">
+      <div className="wf-nav">
+        <button className="wf-btn" onClick={goBack}>← Back</button>
+        <span className="wf-nav-title">Split method</span>
+        <button className="wf-btn primary" onClick={goBack}>Done</button>
+      </div>
+
+      <div className="wf-body">
+        <div className="wf-tabs" style={{ marginBottom: 4 }}>
+          {[['even','Even'], ['amounts','Exact £'], ['percent','Percent'], ['shares','Shares']].map(([val, label]) => (
+            <button key={val} className={`wf-tab${splitMode === val ? ' active' : ''}`} onClick={() => setSplitMode(val)}>
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {splitMode === 'even' && (
+          <div className="wf-section">
+            <div className="wf-note">Split equally among everyone involved. Simplest option.</div>
+            {sel.map(i => (
+              <div key={i} className="wf-split-row" style={{ padding: '10px 4px' }}>
+                <div className="wf-split-check" style={{ background: '#1a1a1a', color: '#fff' }}>✓</div>
+                <Avatar idx={i} size={26} />
+                <span className="wf-split-name" style={{ fontSize: 17 }}>{PEOPLE[i].name}</span>
+                <span style={{ fontFamily: 'DM Mono', fontSize: 16, color: '#333', marginLeft: 'auto' }}>
+                  £{(TOTAL / sel.length).toFixed(2)}
+                </span>
+              </div>
+            ))}
+            <div className="wf-annotation" style={{ marginTop: 4 }}>Each person owes £{(TOTAL / sel.length).toFixed(2)}</div>
+          </div>
+        )}
+
+        {splitMode === 'amounts' && (
+          <div className="wf-section">
+            <div className="wf-note">Enter the exact amount each person owes.</div>
+            {sel.map((i, idx) => (
+              <div key={i} className="wf-split-row" style={{ padding: '10px 4px' }}>
+                <Avatar idx={i} size={26} />
+                <span className="wf-split-name" style={{ fontSize: 17 }}>{PEOPLE[i].name}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <span style={{ fontFamily: 'Caveat', fontSize: 16, color: '#888' }}>£</span>
+                  <input className="wf-payer-amount"
+                    value={splitAmounts[i] || ''}
+                    onChange={e => setSplitAmounts(a => ({ ...a, [i]: e.target.value }))}
+                    placeholder="0.00" />
+                </div>
+              </div>
+            ))}
+            <div className="wf-divider" />
+            {(() => {
+              const entered = sel.reduce((a, i) => a + (parseFloat(splitAmounts[i]) || 0), 0);
+              const rem = TOTAL - entered;
+              return (
+                <div>
+                  <div className="wf-row" style={{ justifyContent: 'space-between', padding: '4px 0' }}>
+                    <span className="wf-annotation">Remaining to assign</span>
+                    <span style={{ fontFamily: 'DM Mono', fontSize: 16, color: Math.abs(rem) < 0.01 ? '#4a7c59' : '#c0392b' }}>
+                      £{rem.toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        )}
+
+        {splitMode === 'percent' && (
+          <div className="wf-section">
+            <div className="wf-note">Assign a percentage of the total to each person.</div>
+            {sel.map((i, idx) => {
+              const pct = parseInt(splitPct[i]) || 0;
+              return (
+                <div key={i} className="wf-split-row" style={{ padding: '10px 4px' }}>
+                  <Avatar idx={i} size={26} />
+                  <span className="wf-split-name" style={{ fontSize: 17 }}>{PEOPLE[i].name}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <input className="wf-payer-amount" style={{ width: 60 }}
+                      value={splitPct[i] || ''}
+                      onChange={e => setSplitPct(a => ({ ...a, [i]: e.target.value }))}
+                      placeholder="0" />
+                    <span style={{ fontFamily: 'Caveat', fontSize: 16 }}>%</span>
+                    <span style={{ fontFamily: 'DM Mono', fontSize: 14, color: '#777', minWidth: 52, textAlign: 'right' }}>
+                      £{(TOTAL * pct / 100).toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+            <div className="wf-annotation" style={{ marginTop: 4 }}>
+              Total: {sel.reduce((a, i) => a + (parseInt(splitPct[i]) || 0), 0)}%
+              {Math.abs(sel.reduce((a, i) => a + (parseInt(splitPct[i]) || 0), 0) - 100) < 1 && ' ✓'}
+            </div>
+          </div>
+        )}
+
+        {splitMode === 'shares' && (
+          <div className="wf-section">
+            <div className="wf-note">Assign share weights — e.g. someone who ordered more gets 2×.</div>
+            {(() => {
+              const totalShares = sel.reduce((a, i) => a + (splitShares[i] || 1), 0);
+              return sel.map(i => {
+                const sh = splitShares[i] || 1;
+                return (
+                  <div key={i} className="wf-split-row" style={{ padding: '10px 4px' }}>
+                    <Avatar idx={i} size={26} />
+                    <span className="wf-split-name" style={{ fontSize: 17 }}>{PEOPLE[i].name}</span>
+                    <div className="wf-row" style={{ gap: 6 }}>
+                      <button className="wf-btn" style={{ padding: '2px 10px', fontSize: 18 }}
+                        onClick={() => setSplitShares(s => ({ ...s, [i]: Math.max(1, sh - 1) }))}>−</button>
+                      <div className="wf-pill-num" style={{ minWidth: 36 }}>{sh}</div>
+                      <button className="wf-btn" style={{ padding: '2px 10px', fontSize: 18 }}
+                        onClick={() => setSplitShares(s => ({ ...s, [i]: sh + 1 }))}>＋</button>
+                    </div>
+                    <span style={{ fontFamily: 'DM Mono', fontSize: 14, color: '#777', marginLeft: 'auto' }}>
+                      £{(TOTAL * sh / totalShares).toFixed(2)}
+                    </span>
+                  </div>
+                );
+              });
+            })()}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="wf-screen" style={{ position: 'relative', overflow: 'hidden' }}>
+      <style>{`
+        @keyframes slideInRight {
+          from { transform: translateX(100%); }
+          to   { transform: translateX(0); }
+        }
+        @keyframes slideInLeft {
+          from { transform: translateX(-40%); opacity: 0.6; }
+          to   { transform: translateX(0); opacity: 1; }
+        }
+      `}</style>
+      {screen === 'main'   && MainScreen}
+      {screen === 'items'  && ItemsScreen}
+      {screen === 'paidby' && PayerScreen}
+      {screen === 'split'  && SplitScreen}
+    </div>
+  );
+}
+
+// ─── Shared group data ───────────────────────────────────────────
+const ME = 0; // "Alex" is the current user
+
+const EXPENSES = [
+  { id: 1, desc: 'Dinner at Nobu', amount: 84.50, paidBy: 0, date: 'Today', participants: [0,1,2], category: '🍽' },
+  { id: 2, desc: 'Black cab home', amount: 32.00, paidBy: 1, date: 'Today', participants: [0,1], category: '🚕' },
+  { id: 3, desc: 'Hotel (2 nights)', amount: 340.00, paidBy: 0, date: 'Yesterday', participants: [0,1,2,3], category: '🏨' },
+  { id: 4, desc: 'Supermarket run', amount: 47.20, paidBy: 2, date: 'Yesterday', participants: [0,2,3], category: '🛒' },
+  { id: 5, desc: 'Museum tickets', amount: 56.00, paidBy: 3, date: '1 May', participants: [0,1,2,3], category: '🎟' },
+  { id: 6, desc: 'Breakfast cafe', amount: 28.40, paidBy: 1, date: '1 May', participants: [1,2], category: '☕' },
+  { id: 7, desc: 'Train tickets', amount: 112.00, paidBy: 0, date: '30 Apr', participants: [0,1,2,3], category: '🚆' },
+  { id: 8, desc: 'Cocktail bar', amount: 63.50, paidBy: 2, date: '30 Apr', participants: [0,1,2], category: '🍸' },
+];
+
+// Simple balance calc: positive = others owe me, negative = I owe others
+const BALANCES = [
+  { person: 0, net: +42.30,  owes: [], owedBy: [{ person: 1, amount: 28.10 }, { person: 2, amount: 14.20 }] },
+  { person: 1, net: -28.10,  owes: [{ person: 0, amount: 28.10 }], owedBy: [] },
+  { person: 2, net: -14.20,  owes: [{ person: 0, amount: 14.20 }], owedBy: [] },
+  { person: 3, net: +0.00,   owes: [], owedBy: [] },
+];
+
+function ExpenseRow({ exp, showDate = false }) {
+  const myShare = (exp.amount / exp.participants.length).toFixed(2);
+  const iPaid = exp.paidBy === ME;
+  const iInvolved = exp.participants.includes(ME);
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 10,
+      padding: '10px 0',
+      borderBottom: '1.5px dashed #e0ddd8',
+      cursor: 'pointer',
+    }}>
+      <div style={{
+        width: 36, height: 36, borderRadius: 4,
+        border: '1.5px solid #ddd', background: '#f0ede8',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: 18, flexShrink: 0,
+      }}>{exp.category}</div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontFamily: 'Caveat', fontSize: 16, fontWeight: 700, color: '#1a1a1a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {exp.desc}
+        </div>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 2 }}>
+          <Avatar idx={exp.paidBy} size={16} />
+          <span className="wf-annotation">{PEOPLE[exp.paidBy].name} paid · {exp.date}</span>
+        </div>
+      </div>
+      <div style={{ textAlign: 'right', flexShrink: 0 }}>
+        <div style={{ fontFamily: 'DM Mono', fontSize: 15, fontWeight: 500, color: '#1a1a1a' }}>
+          £{exp.amount.toFixed(2)}
+        </div>
+        {iInvolved && (
+          <div style={{ fontFamily: 'Caveat', fontSize: 13, color: iPaid ? '#4a7c59' : '#c0392b', marginTop: 1 }}>
+            {iPaid ? `you get back` : `you owe £${myShare}`}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Variant F: Classic Tabs ──────────────────────────────────────
+function VariantF() {
+  const [tab, setTab] = React.useState('expenses');
+  const [search, setSearch] = React.useState('');
+  const [filter, setFilter] = React.useState('all'); // 'all' | 'mine'
+
+  const filtered = EXPENSES.filter(e => {
+    const matchSearch = e.desc.toLowerCase().includes(search.toLowerCase());
+    const matchFilter = filter === 'all' || e.participants.includes(ME);
+    return matchSearch && matchFilter;
+  });
+
+  // Group by date
+  const grouped = filtered.reduce((acc, e) => {
+    (acc[e.date] = acc[e.date] || []).push(e);
+    return acc;
+  }, {});
+
+  return (
+    <div className="wf-screen">
+      {/* Nav */}
+      <div className="wf-nav" style={{ padding: '10px 14px 8px' }}>
+        <button className="wf-btn" style={{ fontSize: 13 }}>← Trips</button>
+        <span className="wf-nav-title">Amsterdam 🇳🇱</span>
+        <button className="wf-btn" style={{ fontSize: 13 }}>⋯</button>
+      </div>
+
+      {/* Tab bar */}
+      <div style={{
+        display: 'flex', borderBottom: '2px solid #1a1a1a',
+        background: '#faf9f7', flexShrink: 0,
+      }}>
+        {[['expenses','Expenses'], ['balances','Balances']].map(([key, label]) => (
+          <button key={key}
+            onClick={() => setTab(key)}
+            style={{
+              flex: 1, fontFamily: 'Caveat', fontSize: 17, fontWeight: 700,
+              padding: '10px 0',
+              border: 'none', background: 'transparent',
+              borderBottom: tab === key ? '3px solid #1a1a1a' : '3px solid transparent',
+              marginBottom: -2,
+              color: tab === key ? '#1a1a1a' : '#999',
+              cursor: 'pointer',
+            }}>{label}</button>
+        ))}
+      </div>
+
+      {tab === 'expenses' && (
+        <>
+          {/* Search + filter */}
+          <div style={{ padding: '10px 14px 0', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ position: 'relative' }}>
+              <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', fontSize: 14, color: '#999' }}>🔍</span>
+              <input
+                className="wf-input"
+                style={{ paddingLeft: 30, fontSize: 15, border: '1.5px solid #ddd', background: '#f0ede8' }}
+                placeholder="Search expenses…"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+              />
+            </div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              {[['all','All expenses'], ['mine','Includes me']].map(([val, label]) => (
+                <button key={val}
+                  onClick={() => setFilter(val)}
+                  className={`wf-chip${filter === val ? ' selected' : ''}`}
+                  style={{ fontSize: 13, padding: '4px 12px' }}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Expense list */}
+          <div className="wf-body" style={{ paddingTop: 8 }}>
+            {Object.entries(grouped).map(([date, exps]) => (
+              <div key={date}>
+                <div style={{ fontFamily: 'Caveat', fontSize: 13, fontWeight: 700, color: '#aaa', letterSpacing: 1, textTransform: 'uppercase', padding: '6px 0 2px' }}>{date}</div>
+                {exps.map(e => <ExpenseRow key={e.id} exp={e} />)}
+              </div>
+            ))}
+            {filtered.length === 0 && (
+              <div className="wf-annotation" style={{ textAlign: 'center', paddingTop: 24 }}>No expenses found</div>
+            )}
+          </div>
+        </>
+      )}
+
+      {tab === 'balances' && (
+        <div className="wf-body">
+          <div className="wf-note" style={{ marginBottom: 4 }}>
+            Simplified debts — fewest transactions to settle up
+          </div>
+          {BALANCES.map(b => (
+            <div key={b.person} style={{
+              display: 'flex', alignItems: 'center', gap: 10,
+              padding: '12px 0', borderBottom: '1.5px dashed #e0ddd8',
+            }}>
+              <Avatar idx={b.person} size={34} />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontFamily: 'Caveat', fontSize: 17, fontWeight: 700 }}>{PEOPLE[b.person].name}{b.person === ME ? ' (you)' : ''}</div>
+                <div className="wf-annotation">
+                  {b.net === 0 ? 'settled up' : b.net > 0 ? `is owed £${b.net.toFixed(2)}` : `owes £${Math.abs(b.net).toFixed(2)}`}
+                </div>
+              </div>
+              <div style={{
+                fontFamily: 'DM Mono', fontSize: 16, fontWeight: 500,
+                color: b.net > 0 ? '#4a7c59' : b.net < 0 ? '#c0392b' : '#999',
+              }}>
+                {b.net > 0 ? '+' : ''}{b.net === 0 ? '—' : `£${Math.abs(b.net).toFixed(2)}`}
+              </div>
+            </div>
+          ))}
+          <div style={{ marginTop: 12 }}>
+            <div className="wf-label" style={{ marginBottom: 8 }}>Settle up</div>
+            {BALANCES.filter(b => b.net < 0).map(b => (
+              <div key={b.person} style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '8px 10px', marginBottom: 8,
+                border: '1.5px dashed #ccc', borderRadius: 4,
+              }}>
+                <Avatar idx={b.person} size={22} />
+                <span style={{ fontFamily: 'Caveat', fontSize: 15 }}>{PEOPLE[b.person].name}</span>
+                <span className="wf-annotation">pays</span>
+                <Avatar idx={b.owes[0].person} size={22} />
+                <span style={{ fontFamily: 'Caveat', fontSize: 15 }}>{PEOPLE[b.owes[0].person].name}</span>
+                <span style={{ fontFamily: 'DM Mono', fontSize: 14, marginLeft: 'auto' }}>£{b.owes[0].amount.toFixed(2)}</span>
+                <button className="wf-btn" style={{ fontSize: 12, padding: '3px 10px' }}>Settle</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* FAB */}
+      <div style={{ position: 'absolute', bottom: 24, right: 16 }}>
+        <button style={{
+          fontFamily: 'Caveat', fontSize: 16, fontWeight: 700,
+          background: '#1a1a1a', color: '#fff',
+          border: 'none', borderRadius: 28,
+          padding: '12px 20px',
+          display: 'flex', alignItems: 'center', gap: 6,
+          boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+          cursor: 'pointer',
+        }}>＋ New expense</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Variant G: Hero Header ───────────────────────────────────────
+function VariantG({ heroStat = 'myspend' }) {
+  const [tab, setTab] = React.useState('expenses');
+  const [filter, setFilter] = React.useState('all');
+  const [search, setSearch] = React.useState('');
+
+  const myBalance = BALANCES.find(b => b.person === ME);
+
+  // My spend = sum of my share across all expenses I'm in
+  const mySpend = EXPENSES.filter(e => e.participants.includes(ME))
+    .reduce((a, e) => a + e.amount / e.participants.length, 0);
+  const groupTotal = EXPENSES.reduce((a, e) => a + e.amount, 0);
+
+  const heroStatLabel = heroStat === 'myspend' ? 'My spend' : 'Group total';
+  const heroStatValue = heroStat === 'myspend' ? mySpend : groupTotal;
+
+  const filtered = EXPENSES.filter(e => {
+    const matchSearch = e.desc.toLowerCase().includes(search.toLowerCase());
+    const matchFilter = filter === 'all' || e.participants.includes(ME);
+    return matchSearch && matchFilter;
+  });
+
+  const grouped = filtered.reduce((acc, e) => {
+    (acc[e.date] = acc[e.date] || []).push(e);
+    return acc;
+  }, {});
+
+  return (
+    <div className="wf-screen">
+      {/* Hero header */}
+      <div style={{
+        background: '#1a1a1a', color: '#faf9f7',
+        padding: '12px 16px 16px', flexShrink: 0,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <button style={{ fontFamily: 'Caveat', fontSize: 14, background: 'none', border: 'none', color: '#888', cursor: 'pointer' }}>← Trips</button>
+          <button style={{ fontFamily: 'Caveat', fontSize: 14, background: 'none', border: 'none', color: '#888', cursor: 'pointer' }}>⋯</button>
+        </div>
+        <div style={{ fontFamily: 'Caveat', fontSize: 24, fontWeight: 700 }}>Amsterdam 🇳🇱</div>
+        <div style={{ fontFamily: 'Caveat', fontSize: 14, color: '#888', marginBottom: 14 }}>
+          {PEOPLE.slice(0,4).map(p => p.name).join(', ')} · 8 expenses
+        </div>
+        {/* Balance summary */}
+        <div style={{ display: 'flex', gap: 10 }}>
+          <div style={{
+            flex: 1, background: 'rgba(255,255,255,0.07)', borderRadius: 6,
+            padding: '10px 12px', border: '1px solid rgba(255,255,255,0.12)',
+          }}>
+            <div style={{ fontFamily: 'Caveat', fontSize: 12, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5 }}>{heroStatLabel}</div>
+            <div style={{ fontFamily: 'DM Mono', fontSize: 20, fontWeight: 500, color: '#faf9f7', marginTop: 2 }}>£{heroStatValue.toFixed(2)}</div>
+          </div>
+          <div style={{
+            flex: 1, background: 'rgba(255,255,255,0.07)', borderRadius: 6,
+            padding: '10px 12px', border: '1px solid rgba(255,255,255,0.12)',
+          }}>
+            <div style={{ fontFamily: 'Caveat', fontSize: 12, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5 }}>Your balance</div>
+            <div style={{ fontFamily: 'DM Mono', fontSize: 20, fontWeight: 500, color: myBalance.net >= 0 ? '#6fcf97' : '#eb5757', marginTop: 2 }}>
+              {myBalance.net >= 0 ? '+' : ''}£{Math.abs(myBalance.net).toFixed(2)}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div style={{ display: 'flex', borderBottom: '2px solid #1a1a1a', background: '#faf9f7', flexShrink: 0 }}>
+        {[['expenses','Expenses'], ['balances','Balances']].map(([key, label]) => (
+          <button key={key} onClick={() => setTab(key)} style={{
+            flex: 1, fontFamily: 'Caveat', fontSize: 17, fontWeight: 700,
+            padding: '10px 0', border: 'none', background: 'transparent',
+            borderBottom: tab === key ? '3px solid #1a1a1a' : '3px solid transparent',
+            marginBottom: -2,
+            color: tab === key ? '#1a1a1a' : '#999', cursor: 'pointer',
+          }}>{label}</button>
+        ))}
+      </div>
+
+      {tab === 'expenses' && (
+        <>
+          <div style={{ padding: '10px 14px 0', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ position: 'relative' }}>
+              <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', fontSize: 14, color: '#999' }}>🔍</span>
+              <input className="wf-input" style={{ paddingLeft: 30, fontSize: 15, border: '1.5px solid #ddd', background: '#f0ede8' }}
+                placeholder="Search…" value={search} onChange={e => setSearch(e.target.value)} />
+            </div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              {[['all','All'], ['mine','Mine']].map(([val, label]) => (
+                <button key={val} onClick={() => setFilter(val)}
+                  className={`wf-chip${filter === val ? ' selected' : ''}`}
+                  style={{ fontSize: 13, padding: '4px 12px' }}>{label}</button>
+              ))}
+            </div>
+          </div>
+          <div className="wf-body" style={{ paddingTop: 8 }}>
+            {Object.entries(grouped).map(([date, exps]) => (
+              <div key={date}>
+                <div style={{ fontFamily: 'Caveat', fontSize: 13, fontWeight: 700, color: '#aaa', letterSpacing: 1, textTransform: 'uppercase', padding: '6px 0 2px' }}>{date}</div>
+                {exps.map(e => <ExpenseRow key={e.id} exp={e} />)}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {tab === 'balances' && (
+        <div className="wf-body">
+          {/* Per-person balance bars */}
+          {BALANCES.map(b => {
+            const maxAbs = Math.max(...BALANCES.map(x => Math.abs(x.net)), 1);
+            const barW = Math.abs(b.net) / maxAbs;
+            return (
+              <div key={b.person} style={{ padding: '10px 0', borderBottom: '1.5px dashed #e0ddd8' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                  <Avatar idx={b.person} size={26} />
+                  <span style={{ fontFamily: 'Caveat', fontSize: 16, fontWeight: 700, flex: 1 }}>
+                    {PEOPLE[b.person].name}{b.person === ME ? ' (you)' : ''}
+                  </span>
+                  <span style={{ fontFamily: 'DM Mono', fontSize: 15, color: b.net > 0 ? '#4a7c59' : b.net < 0 ? '#c0392b' : '#999' }}>
+                    {b.net > 0 ? '+' : ''}{b.net === 0 ? '—' : `£${Math.abs(b.net).toFixed(2)}`}
+                  </span>
+                </div>
+                {b.net !== 0 && (
+                  <div style={{ height: 6, background: '#eee', borderRadius: 3, overflow: 'hidden' }}>
+                    <div style={{
+                      height: '100%', borderRadius: 3,
+                      width: `${barW * 100}%`,
+                      background: b.net > 0 ? '#4a7c59' : '#c0392b',
+                    }} />
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          <div style={{ marginTop: 12 }}>
+            <div className="wf-label" style={{ marginBottom: 8 }}>Suggested settlements</div>
+            {BALANCES.filter(b => b.net < 0).map(b => (
+              <div key={b.person} style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '8px 10px', marginBottom: 8,
+                border: '1.5px dashed #ccc', borderRadius: 4,
+              }}>
+                <Avatar idx={b.person} size={22} />
+                <span style={{ fontFamily: 'Caveat', fontSize: 14 }}>{PEOPLE[b.person].name}</span>
+                <span className="wf-annotation">→</span>
+                <Avatar idx={b.owes[0].person} size={22} />
+                <span style={{ fontFamily: 'Caveat', fontSize: 14 }}>{PEOPLE[b.owes[0].person].name}</span>
+                <span style={{ fontFamily: 'DM Mono', fontSize: 13, marginLeft: 'auto' }}>£{b.owes[0].amount.toFixed(2)}</span>
+                <button className="wf-btn" style={{ fontSize: 12, padding: '3px 10px' }}>Settle</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* FAB */}
+      <div style={{ position: 'absolute', bottom: 24, right: 16 }}>
+        <button style={{
+          fontFamily: 'Caveat', fontSize: 16, fontWeight: 700,
+          background: '#4a7c59', color: '#fff',
+          border: 'none', borderRadius: 28,
+          padding: '12px 20px',
+          display: 'flex', alignItems: 'center', gap: 6,
+          boxShadow: '0 4px 14px rgba(74,124,89,0.35)',
+          cursor: 'pointer',
+        }}>＋ New expense</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Variant H: Unified feed (no tabs, balance strip pinned) ──────
+function VariantH() {
+  const [filter, setFilter] = React.useState('all');
+  const [search, setSearch] = React.useState('');
+  const [balOpen, setBalOpen] = React.useState(false);
+
+  const myBalance = BALANCES.find(b => b.person === ME);
+
+  const filtered = EXPENSES.filter(e => {
+    const matchSearch = e.desc.toLowerCase().includes(search.toLowerCase());
+    const matchFilter = filter === 'all' || e.participants.includes(ME);
+    return matchSearch && matchFilter;
+  });
+
+  const grouped = filtered.reduce((acc, e) => {
+    (acc[e.date] = acc[e.date] || []).push(e);
+    return acc;
+  }, {});
+
+  return (
+    <div className="wf-screen">
+      <div className="wf-nav">
+        <button className="wf-btn" style={{ fontSize: 13 }}>← Trips</button>
+        <span className="wf-nav-title">Amsterdam 🇳🇱</span>
+        <button className="wf-btn" style={{ fontSize: 13 }}>⋯</button>
+      </div>
+
+      {/* Pinned balance strip */}
+      <div
+        onClick={() => setBalOpen(o => !o)}
+        style={{
+          background: myBalance.net >= 0 ? '#eaf4ee' : '#fdeaea',
+          borderBottom: `2px solid ${myBalance.net >= 0 ? '#4a7c59' : '#c0392b'}`,
+          padding: '8px 14px', flexShrink: 0, cursor: 'pointer',
+        }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <span className="wf-annotation" style={{ color: myBalance.net >= 0 ? '#2d5a3d' : '#922b21' }}>
+              {myBalance.net >= 0 ? 'You are owed ' : 'You owe '}
+            </span>
+            <span style={{ fontFamily: 'DM Mono', fontSize: 16, fontWeight: 500, color: myBalance.net >= 0 ? '#2d5a3d' : '#922b21' }}>
+              £{Math.abs(myBalance.net).toFixed(2)}
+            </span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontFamily: 'Caveat', fontSize: 14, color: '#888' }}>All balances {balOpen ? '▲' : '▼'}</span>
+          </div>
+        </div>
+        {/* Expanded balances */}
+        {balOpen && (
+          <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {BALANCES.filter(b => b.person !== ME).map(b => (
+              <div key={b.person} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Avatar idx={b.person} size={20} />
+                <span style={{ fontFamily: 'Caveat', fontSize: 15, flex: 1 }}>{PEOPLE[b.person].name}</span>
+                <span style={{ fontFamily: 'DM Mono', fontSize: 14, color: b.net > 0 ? '#c0392b' : b.net < 0 ? '#4a7c59' : '#999' }}>
+                  {b.net < 0 ? `owes you £${Math.abs(b.net).toFixed(2)}` : b.net > 0 ? `you owe £${b.net.toFixed(2)}` : 'settled'}
+                </span>
+                {b.net !== 0 && <button className="wf-btn" style={{ fontSize: 11, padding: '2px 8px' }}>Settle</button>}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Search + filter */}
+      <div style={{ padding: '10px 14px 0', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={{ position: 'relative' }}>
+          <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', fontSize: 14, color: '#999' }}>🔍</span>
+          <input className="wf-input" style={{ paddingLeft: 30, fontSize: 15, border: '1.5px solid #ddd', background: '#f0ede8' }}
+            placeholder="Search expenses…" value={search} onChange={e => setSearch(e.target.value)} />
+        </div>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {[['all','All expenses'], ['mine','Includes me']].map(([val, label]) => (
+            <button key={val} onClick={() => setFilter(val)}
+              className={`wf-chip${filter === val ? ' selected' : ''}`}
+              style={{ fontSize: 13, padding: '4px 12px' }}>{label}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* Unified expense feed */}
+      <div className="wf-body" style={{ paddingTop: 8 }}>
+        {Object.entries(grouped).map(([date, exps]) => (
+          <div key={date}>
+            <div style={{ fontFamily: 'Caveat', fontSize: 13, fontWeight: 700, color: '#aaa', letterSpacing: 1, textTransform: 'uppercase', padding: '6px 0 2px' }}>{date}</div>
+            {exps.map(e => <ExpenseRow key={e.id} exp={e} />)}
+          </div>
+        ))}
+        {filtered.length === 0 && (
+          <div className="wf-annotation" style={{ textAlign: 'center', paddingTop: 24 }}>No expenses found</div>
+        )}
+        <div style={{ height: 70 }} />
+      </div>
+
+      {/* Bottom bar with new expense CTA */}
+      <div style={{
+        position: 'absolute', bottom: 0, left: 0, right: 0,
+        padding: '10px 14px 16px',
+        background: 'linear-gradient(to top, #faf9f7 70%, transparent)',
+        pointerEvents: 'none',
+      }}>
+        <button style={{
+          fontFamily: 'Caveat', fontSize: 17, fontWeight: 700,
+          background: '#1a1a1a', color: '#fff',
+          border: 'none', borderRadius: 28,
+          padding: '12px 0', width: '100%',
+          cursor: 'pointer', pointerEvents: 'all',
+          letterSpacing: 0.2,
+        }}>＋ New expense</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Root ────────────────────────────────────────────────────────
+function App() {
+  const PHONE_W = 390;
+  const PHONE_H = 720;
+
+  const [tweaks, setTweak] = useTweaks(/*EDITMODE-BEGIN*/{
+    "heroStat": "myspend"
+  }/*EDITMODE-END*/);
+
+  const artboards = [
+    { id: 'a', label: 'A · Single Scroll', note: 'Everything on one page. Fast for power users.', comp: <VariantA /> },
+    { id: 'b', label: 'B · Step-by-Step Wizard', note: 'Guided 4-step flow. Low cognitive load per screen.', comp: <VariantB /> },
+    { id: 'c', label: 'C · Card Accordion', note: 'Collapsed cards reveal detail inline. Always shows progress.', comp: <VariantC /> },
+    { id: 'd', label: 'D · Bottom-Sheet Hub', note: 'Summary view with contextual sheets. Clean & modern.', comp: <VariantD /> },
+  ];
+
+  const hybridArtboards = [
+    {
+      id: 'e-main', label: 'E · Main screen', width: PHONE_W + 60, height: PHONE_H + 130,
+      note: 'Simple case: one screen. "Paid by" and "Split" rows are tappable to drill deeper.',
+      comp: <VariantE initScreen="main" initPayerMode="one" initSplitMode="even" />,
+    },
+    {
+      id: 'e-paidby', label: 'E · Paid by (multi-payer)', width: PHONE_W + 60, height: PHONE_H + 130,
+      note: 'Drill-down screen — accessible only when needed. Defaults to single payer.',
+      comp: <VariantE initScreen="paidby" initPayerMode="multi" initSplitMode="even" />,
+    },
+    {
+      id: 'e-split', label: 'E · Split detail', width: PHONE_W + 60, height: PHONE_H + 130,
+      note: 'Drill-down for split method. Supports Even / Exact £ / Percent / Shares.',
+      comp: <VariantE initScreen="split" initPayerMode="one" initSplitMode="shares" />,
+    },
+    {
+      id: 'e-items', label: 'E · Items / Receipt', width: PHONE_W + 60, height: PHONE_H + 130,
+      note: 'Tap the receipt zone to simulate a scan. Items auto-populate; edit or add manually.',
+      comp: <VariantE initScreen="items" initPayerMode="one" initSplitMode="even" />,
+    },
+  ];
+
+  return (
+    <>
+      <TweaksPanel>
+        <TweakSection title="Group Page · Variant G">
+          <TweakRadio
+            label="Hero stat"
+            value={tweaks.heroStat}
+            options={[{ value: 'myspend', label: 'My spend' }, { value: 'grouptotal', label: 'Group total' }]}
+            onChange={v => setTweak('heroStat', v)}
+          />
+        </TweakSection>
+      </TweaksPanel>
+      <DesignCanvas>
+      <DCSection id="wf" title="Expense Add/Edit · Wireframe Explorations">
+        {artboards.map(a => (
+          <DCArtboard key={a.id} id={a.id} label={a.label} width={PHONE_W + 60} height={PHONE_H + 130}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: 16 }}>
+              <IOSDevice width={PHONE_W} height={PHONE_H}>
+                {a.comp}
+              </IOSDevice>
+              <div style={{ fontFamily: 'Caveat', fontSize: 14, color: '#888', textAlign: 'center', maxWidth: PHONE_W, lineHeight: 1.5 }}>{a.note}</div>
+            </div>
+          </DCArtboard>
+        ))}
+      </DCSection>
+      <DCSection id="hybrid" title="E · Hybrid (A+B): Single screen + drill-down detail">
+        {hybridArtboards.map(a => (
+          <DCArtboard key={a.id} id={a.id} label={a.label} width={a.width} height={a.height}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: 16 }}>
+              <IOSDevice width={PHONE_W} height={PHONE_H}>
+                {a.comp}
+              </IOSDevice>
+              <div style={{ fontFamily: 'Caveat', fontSize: 14, color: '#888', textAlign: 'center', maxWidth: PHONE_W, lineHeight: 1.5 }}>{a.note}</div>
+            </div>
+          </DCArtboard>
+        ))}
+      </DCSection>
+      <DCSection id="group" title="Group Page · Wireframe Explorations">
+        {[
+          { id: 'f', label: 'F · Classic Tabs', note: 'Standard tab bar. Search + filter chips. FAB for new expense.', comp: <VariantF /> },
+          { id: 'g', label: 'G · Hero Header', note: 'Dark hero shows group totals + your balance at a glance. Collapses to tabs.', comp: <VariantG heroStat={tweaks.heroStat} /> },
+          { id: 'h', label: 'H · Unified Feed', note: 'No tabs — balance strip pinned at top (tap to expand). Full-width new expense button.', comp: <VariantH /> },
+        ].map(a => (
+          <DCArtboard key={a.id} id={a.id} label={a.label} width={PHONE_W + 60} height={PHONE_H + 130}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: 16 }}>
+              <IOSDevice width={PHONE_W} height={PHONE_H}>
+                {a.comp}
+              </IOSDevice>
+              <div style={{ fontFamily: 'Caveat', fontSize: 14, color: '#888', textAlign: 'center', maxWidth: PHONE_W, lineHeight: 1.5 }}>{a.note}</div>
+            </div>
+          </DCArtboard>
+        ))}
+      </DCSection>
+    </DesignCanvas>
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+
+<div id="root" style="width:100vw; height:100vh;"></div>
+</body>
+</html>
