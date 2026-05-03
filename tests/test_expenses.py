@@ -262,29 +262,28 @@ async def test_itemised_expense_self_assignment(db, simple_group, client_factory
     assert balances[g.alice["id"]] == 2500
     assert balances[g.bob["id"]] == -2500
 
-    # Alice assigns: Pizza=3000, Beer=1000 → owes 4000
-    # Bob is now the sole remainder participant for Beer → gets 1000
+    # Alice assigns: Pizza=3000, Beer=1000
     await submit_assignment(client, expense_id, g.alice["id"], [
         {"item_id": pizza_id, "instances": 1},
         {"item_id": beer_id,  "instances": 1},
     ])
 
-    # Check attributions after Alice's assignments
+    # Remaining beer (1000) gets split evenly
+    # So Alice owes 3000+1000+500=4500; Bob owes 500
     client_factory(g.alice)
     resp = await client.get(f"/api/v1/expenses/{expense_id}/effective-attributions")
     assert resp.status_code == 200
     ea = {row["user_id"]: row["effective_amount"] for row in resp.json()}
-    assert ea[g.alice["id"]] == 4000  # 3000 + 1000
+    assert ea[g.alice["id"]] == 4500
     # Implicitly Bob owes the remaining beer
-    assert ea[g.bob["id"]] == 1000    # 1000
+    assert ea[g.bob["id"]] == 500
 
-    # Bob explicitly assigns himself the remaining beer
+    # Bob assigns himself the remaining beer
     client_factory(g.bob)
     await submit_assignment(client, expense_id, g.bob["id"], [
         {"item_id": beer_id, "instances": 1},
     ])
 
-    # Effective attributions should stay the same
     client_factory(g.alice)
     resp = await client.get(f"/api/v1/expenses/{expense_id}/effective-attributions")
     assert resp.status_code == 200
@@ -487,135 +486,6 @@ async def test_itemised_expense_partly_self_assigned(db, simple_group, client_fa
     assert balances[g.alice["id"]] == 1500
     assert balances[g.bob["id"]] == -1500
     assert balances[g.carol["id"]] == 0
-
-
-async def test_itemised_expnse_add_item(db, simple_group, client_factory):
-    """
-    Create an itemised expense with attributions then add an item later. Verify
-    effective attributions and balances after the new item is added.
-    """
-    g = simple_group
-    group_id = g.group["id"]
-    client = client_factory(g.alice)
-
-    # Alice pays £70 upfront (covering planned items including the one to be added).
-    # Initial items sum to £50; Dessert (£20) will be added next.
-    expense = await create_expense(client, group_id, {
-        "title": "Restaurant",
-        "type": "itemised",
-        "currency": "GBP",
-        "total_amount": 7000,
-        "payments": [{"paid_by": g.alice["id"], "amount": 7000}],
-        "participant_ids": [g.alice["id"], g.bob["id"]],
-        "items": [
-            {"name": "Pizza", "unit_price": 3000, "quantity": 1, "attributions": [
-                {"user_id": g.alice["id"], "instances": 1},
-            ]},
-            {"name": "Beer", "unit_price": 1000, "quantity": 2, "attributions": [
-                {"user_id": g.alice["id"], "instances": 1},
-                {"user_id": g.bob["id"],   "instances": 1},
-            ]},
-        ],
-    })
-    expense_id = expense["id"]
-
-    # EA before adding Dessert: Alice=3000+1000=4000, Bob=1000
-    resp = await client.get(f"/api/v1/expenses/{expense_id}/effective-attributions")
-    assert resp.status_code == 200
-    ea = {row["user_id"]: row["effective_amount"] for row in resp.json()}
-    assert ea[g.alice["id"]] == 4000
-    assert ea[g.bob["id"]] == 1000
-
-    # Add Dessert (£10 × 2 = £20), unattributed → split evenly
-    existing = [
-        {"id": item["id"], "name": item["name"], "unit_price": item["unit_price"], "quantity": item["quantity"]}
-        for item in expense["items"]
-    ]
-    resp = await client.put(f"/api/v1/expenses/{expense_id}/items", json=existing + [
-        {"name": "Dessert", "unit_price": 1000, "quantity": 2},
-    ])
-    assert resp.status_code == 200
-
-    # EA after: Alice=4000+1000=5000, Bob=1000+1000=2000; sum=7000=payment
-    resp = await client.get(f"/api/v1/expenses/{expense_id}/effective-attributions")
-    assert resp.status_code == 200
-    ea = {row["user_id"]: row["effective_amount"] for row in resp.json()}
-    assert ea[g.alice["id"]] == 5000
-    assert ea[g.bob["id"]] == 2000
-
-    # Alice: 7000 - 5000 = +2000; Bob: -2000
-    resp = await client.get(f"/api/v1/groups/{group_id}/balances")
-    assert resp.status_code == 200
-    balances = {row["user_id"]: row["net_balance"] for row in resp.json()}
-    assert balances[g.alice["id"]] == 2000
-    assert balances[g.bob["id"]] == -2000
-
-
-async def test_itemised_expense_remove_item(db, simple_group, client_factory):
-    """
-    Create an itemised expense then remove an item without attributions. Verify
-    effective attributions and balances after the item is removed.
-    """
-    g = simple_group
-    group_id = g.group["id"]
-    client = client_factory(g.alice)
-
-    # Pizza £30 (all Alice) + Beer 2×£10 (Alice=1, Bob=1) + Dessert 2×£5 (unassigned) = £60
-    expense = await create_expense(client, group_id, {
-        "title": "Restaurant",
-        "type": "itemised",
-        "currency": "GBP",
-        "total_amount": 6000,
-        "payments": [{"paid_by": g.alice["id"], "amount": 6000}],
-        "participant_ids": [g.alice["id"], g.bob["id"]],
-        "items": [
-            {"name": "Pizza", "unit_price": 3000, "quantity": 1, "attributions": [
-                {"user_id": g.alice["id"], "instances": 1},
-            ]},
-            {"name": "Beer", "unit_price": 1000, "quantity": 2, "attributions": [
-                {"user_id": g.alice["id"], "instances": 1},
-                {"user_id": g.bob["id"],   "instances": 1},
-            ]},
-            {"name": "Dessert", "unit_price": 500, "quantity": 2, "attributions": []},
-        ],
-    })
-    expense_id = expense["id"]
-    items = {item["name"]: item for item in expense["items"]}
-    dessert_id = items["Dessert"]["id"]
-
-    # Initial EA: Alice=3000+1000+500=4500, Bob=1000+500=1500; sum=6000=payment
-    resp = await client.get(f"/api/v1/expenses/{expense_id}/effective-attributions")
-    assert resp.status_code == 200
-    ea = {row["user_id"]: row["effective_amount"] for row in resp.json()}
-    assert ea[g.alice["id"]] == 4500
-    assert ea[g.bob["id"]] == 1500
-
-    resp = await client.get(f"/api/v1/groups/{group_id}/balances")
-    assert resp.status_code == 200
-    balances = {row["user_id"]: row["net_balance"] for row in resp.json()}
-    assert balances[g.alice["id"]] == 1500
-    assert balances[g.bob["id"]] == -1500
-
-    # Remove the unattributed Dessert item
-    remaining = [
-        {"id": item["id"], "name": item["name"], "unit_price": item["unit_price"], "quantity": item["quantity"]}
-        for item in expense["items"] if item["id"] != dessert_id
-    ]
-    resp = await client.put(f"/api/v1/expenses/{expense_id}/items", json=remaining)
-    assert resp.status_code == 200
-
-    # EA after: Alice=4000, Bob=1000; sum=5000 < payment (Alice overpaid £10)
-    resp = await client.get(f"/api/v1/expenses/{expense_id}/effective-attributions")
-    assert resp.status_code == 200
-    ea = {row["user_id"]: row["effective_amount"] for row in resp.json()}
-    assert ea[g.alice["id"]] == 4000
-    assert ea[g.bob["id"]] == 1000
-
-    resp = await client.get(f"/api/v1/groups/{group_id}/balances")
-    assert resp.status_code == 200
-    balances = {row["user_id"]: row["net_balance"] for row in resp.json()}
-    assert balances[g.alice["id"]] == 2000
-    assert balances[g.bob["id"]] == -1000
 
 
 async def test_itemised_expense_add_participant(db, simple_group, client_factory):

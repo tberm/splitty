@@ -42,7 +42,7 @@ CREATE TABLE expenses (
     id              SERIAL PRIMARY KEY,
     group_id        INTEGER      NOT NULL REFERENCES groups(id),
     title           TEXT         NOT NULL,
-    description       TEXT,
+    notes             TEXT,
     -- Opaque key referencing the receipt image in object storage; NULL if no receipt was uploaded
     receipt_image_key TEXT,
     type            expense_type NOT NULL,
@@ -129,8 +129,8 @@ CREATE TABLE attributions (
     CONSTRAINT attribution_amount_xor_instances CHECK (
         NOT (explicit_amount IS NOT NULL AND claimed_instances IS NOT NULL)
     ),
-    UNIQUE NULLS NOT DISTINCT (user_id, expense_id),
-    UNIQUE NULLS NOT DISTINCT (user_id, expense_item_id)
+    UNIQUE (user_id, expense_id),
+    UNIQUE (user_id, expense_item_id)
 );
 
 -- ============================================================
@@ -525,7 +525,7 @@ item_totals AS (
     FROM expense_items ei
 ),
 
--- Count of participants per expense
+-- Participant counts per expense
 expense_participant_counts AS (
     SELECT expense_id, COUNT(*) AS total_count
     FROM expense_participants
@@ -562,15 +562,13 @@ item_remainders AS (
     LEFT JOIN item_claimed_totals ict ON ict.item_id = it.item_id
 ),
 
--- For each participant, compute their base amount and remainder share per item
+-- For each participant, compute their base amount and remainder share per item.
+-- The remainder pool is always all participants, regardless of acknowledged status.
 itemised_per_participant_item AS (
     SELECT
         ep.expense_id,
         ep.user_id,
         ir.item_id,
-        ir.item_total,
-        ir.unit_price,
-        ir.split_method,
         ir.remainder,
         epc.total_count,
 
@@ -578,10 +576,11 @@ itemised_per_participant_item AS (
         CASE ir.split_method
             WHEN 'explicit'  THEN COALESCE(a.explicit_amount, 0)
             WHEN 'instances' THEN COALESCE(a.claimed_instances, 0) * ir.unit_price
-            ELSE 0  -- NULL (unclaimed): base is 0
+            ELSE 0
         END AS base_amount,
 
-        -- Rank within remainder pool (all participants, ordered by user_id for rounding)
+        -- Rank within all participants, used to assign the indivisible remainder penny
+        -- to the participant with the lowest user_id.
         ROW_NUMBER() OVER (
             PARTITION BY ir.item_id
             ORDER BY ep.user_id
@@ -601,7 +600,6 @@ itemised_item_amounts AS (
         expense_id,
         user_id,
         item_id,
-        -- Base claim + equal share of unattributed remainder (remainder penny to lowest user_id)
         base_amount
         + (remainder / total_count)
         + CASE WHEN remainder_pool_rank = 1
@@ -642,8 +640,8 @@ SELECT expense_id, group_id, user_id, effective_amount FROM itemised_totals;
 -- Net balance per user per group:
 --   + what they paid (payments)
 --   - what they owe (effective attributions)
---   + what they received in settlements
---   - what they paid in settlements
+--   - what they received in settlements (reduces group's debt to them)
+--   + what they paid in settlements (reduces their debt to the group)
 --
 -- Positive = group owes them money
 -- Negative = they owe the group money
@@ -693,8 +691,8 @@ SELECT
     au.user_id,
     COALESCE(pt.total_paid,     0)
     - COALESCE(at.total_owed,   0)
-    + COALESCE(sr.total_received, 0)
-    - COALESCE(ss.total_sent,   0) AS net_balance
+    - COALESCE(sr.total_received, 0)
+    + COALESCE(ss.total_sent,   0) AS net_balance
 FROM all_users au
 LEFT JOIN payment_totals     pt ON pt.group_id = au.group_id AND pt.user_id = au.user_id
 LEFT JOIN attribution_totals at ON at.group_id = au.group_id AND at.user_id = au.user_id

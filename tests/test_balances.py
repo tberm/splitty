@@ -171,8 +171,8 @@ async def test_settlement_without_expense(db, simple_group, client_factory):
     await _settle(client, group_id, g.bob["id"], g.alice["id"], 5000)
 
     b = await _balances(client, group_id)
-    assert b[g.alice["id"]] == 5000
-    assert b[g.bob["id"]]   == -5000
+    assert b[g.alice["id"]] == -5000
+    assert b[g.bob["id"]]   == 5000
 
 
 async def test_multiple_settlements(db, simple_group, client_factory):
@@ -262,10 +262,12 @@ async def test_rounding_even_split(db, simple_group, client_factory):
         "participant_ids": [g.alice["id"], g.bob["id"], g.carol["id"]],
     })
 
+    # Alice paid 1000, owes 334 → +666
+    # Other two owe 333 → -333
     b = await _balances(client, group_id)
     assert sum(b.values()) == 0
-    owed_amounts = sorted(abs(v) for v in b.values())
-    assert owed_amounts == [333, 333, 334]
+    owed_amounts = sorted(b.values())
+    assert owed_amounts == [-333, -333, 666]
 
 
 async def test_itemised_fully_attributed_balance(db, simple_group, client_factory):
