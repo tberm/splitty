@@ -23,7 +23,7 @@ DATABASE_URL = os.environ.get(
     "postgresql:///splitty_test",
 )
 
-SCHEMA_PATH = Path(__file__).parent.parent / "schema.sql"
+SCHEMA_PATH = Path(__file__).parent.parent / "db" / "schema.sql"
 
 
 @pytest.fixture(scope="session")
