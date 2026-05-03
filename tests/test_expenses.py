@@ -527,13 +527,14 @@ async def test_itemised_expnse_add_item(db, simple_group, client_factory):
     assert ea[g.bob["id"]] == 1000
 
     # Add Dessert (£10 × 2 = £20), unattributed → split evenly
-    resp = await client.post(f"/api/v1/expenses/{expense_id}/items", json={
-        "name": "Dessert",
-        "unit_price": 1000,
-        "quantity": 2,
-        "attributions": [],
-    })
-    assert resp.status_code == 201
+    existing = [
+        {"id": item["id"], "name": item["name"], "unit_price": item["unit_price"], "quantity": item["quantity"]}
+        for item in expense["items"]
+    ]
+    resp = await client.put(f"/api/v1/expenses/{expense_id}/items", json=existing + [
+        {"name": "Dessert", "unit_price": 1000, "quantity": 2},
+    ])
+    assert resp.status_code == 200
 
     # EA after: Alice=4000+1000=5000, Bob=1000+1000=2000; sum=7000=payment
     resp = await client.get(f"/api/v1/expenses/{expense_id}/effective-attributions")
@@ -596,8 +597,12 @@ async def test_itemised_expense_remove_item(db, simple_group, client_factory):
     assert balances[g.bob["id"]] == -1500
 
     # Remove the unattributed Dessert item
-    resp = await client.delete(f"/api/v1/expenses/{expense_id}/items/{dessert_id}")
-    assert resp.status_code == 204
+    remaining = [
+        {"id": item["id"], "name": item["name"], "unit_price": item["unit_price"], "quantity": item["quantity"]}
+        for item in expense["items"] if item["id"] != dessert_id
+    ]
+    resp = await client.put(f"/api/v1/expenses/{expense_id}/items", json=remaining)
+    assert resp.status_code == 200
 
     # EA after: Alice=4000, Bob=1000; sum=5000 < payment (Alice overpaid £10)
     resp = await client.get(f"/api/v1/expenses/{expense_id}/effective-attributions")
@@ -656,10 +661,10 @@ async def test_itemised_expense_add_participant(db, simple_group, client_factory
     assert balances[g.bob["id"]] == -1500
 
     # Add Carol as a participant
-    resp = await client.post(f"/api/v1/expenses/{expense_id}/participants", json={
-        "user_id": g.carol["id"],
-    })
-    assert resp.status_code == 201
+    resp = await client.put(f"/api/v1/expenses/{expense_id}/participants", json=[
+        g.alice["id"], g.bob["id"], g.carol["id"],
+    ])
+    assert resp.status_code == 200
 
     # Beer (3000) now split between 3 → 1000 each; Pizza still all Alice
     # EA: Alice=2000+1000=3000, Bob=1000, Carol=1000

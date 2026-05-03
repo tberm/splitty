@@ -28,7 +28,7 @@ async def create_expense(client: AsyncClient, group_id: int, payload: dict) -> d
 
     if payload["type"] == "simple":
         assert expense["split_method"] == payload["split_method"]
-        assert expense["items"] is None
+        assert "items" not in expense
         if "participant_ids" in payload:
             expected_participant_ids = set(payload["participant_ids"])
         else:
@@ -37,7 +37,7 @@ async def create_expense(client: AsyncClient, group_id: int, payload: dict) -> d
         assert actual_participant_ids == expected_participant_ids
 
     elif payload["type"] == "itemised":
-        assert expense["split_method"] is None
+        assert "split_method" not in expense
         expected_items = payload.get("items", [])
         assert len(expense["items"]) == len(expected_items)
         actual_items = {item["name"]: item for item in expense["items"]}
