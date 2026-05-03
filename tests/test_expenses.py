@@ -144,8 +144,6 @@ async def test_itemised_expense_pre_assigned(db, simple_group, client_factory):
     group_id = g.group["id"]
     client = client_factory(g.alice)
 
-    # £50 total paid by Alice; three even-split items with no attributions,
-    # so both participants start in the remainder pool for every item.
     expense = await create_expense(client, group_id, {
         "title": "Restaurant",
         "type": "itemised",
