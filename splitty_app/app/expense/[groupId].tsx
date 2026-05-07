@@ -1,15 +1,11 @@
 /**
  * Screen E.1 — Add/Edit Expense (main screen)
  *
- * Sections:
- *   - Who's involved (participant chips)
- *   - Description (text input)
- *   - Amount (currency pill + numeric input, receipt button)
- *   - Paid by (tappable summary row → E.4)
- *   - Split method (tappable summary row → E.5)
- * Footer: "Save Expense" button
+ * Create mode: POST /groups/:groupId/expenses on Save.
+ * Edit mode:   PUT  /expenses/:expenseId         on Save (title/amount/currency/split).
+ *              Sub-screens (paid-by, who's involved) fire their own PUTs immediately.
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -20,11 +16,76 @@ import {
   SafeAreaView,
   KeyboardAvoidingView,
   Platform,
+  Modal,
+  FlatList,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Colors } from '@/constants/colors';
 import { Avatar } from '@/components/Avatar';
-import { MOCK_GROUP, CURRENT_USER_ID } from '@/constants/mockData';
+import { getGroup } from '@/api/groups';
+import {
+  createExpense,
+  getExpense,
+  updateExpense,
+  setParticipants,
+} from '@/api/expenses';
+import { useExpenseForm } from './ExpenseFormContext';
+
+const MAX_FACEPILE = 4;
+
+function ParticipantFacepile({
+  members,
+  selectedIds,
+}: {
+  members: { userId: string; name: string }[];
+  selectedIds: number[];
+}) {
+  const selected = members.filter((m) => selectedIds.includes(parseInt(m.userId, 10)));
+  const visible = selected.slice(0, MAX_FACEPILE);
+  const overflow = selected.length - visible.length;
+  const AVATAR_SIZE = 28;
+  const OVERLAP = 10;
+
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 8 }}>
+      {visible.map((m, i) => (
+        <View
+          key={m.userId}
+          style={{
+            marginLeft: i === 0 ? 0 : -OVERLAP,
+            zIndex: visible.length - i,
+            borderRadius: AVATAR_SIZE / 2,
+            borderWidth: 2,
+            borderColor: Colors.inputBg,
+          }}
+        >
+          <Avatar userId={m.userId} name={m.name} size={AVATAR_SIZE} />
+        </View>
+      ))}
+      {overflow > 0 && (
+        <View
+          style={{
+            marginLeft: -OVERLAP,
+            width: AVATAR_SIZE,
+            height: AVATAR_SIZE,
+            borderRadius: AVATAR_SIZE / 2,
+            backgroundColor: Colors.chipUnselected,
+            borderWidth: 2,
+            borderColor: Colors.inputBg,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Text style={{ fontSize: 10, fontWeight: '700', color: Colors.textMuted }}>
+            +{overflow}
+          </Text>
+        </View>
+      )}
+    </View>
+  );
+}
 
 function formatAmount(minorUnits: number, currency = 'GBP') {
   const symbol = currency === 'GBP' ? '£' : '$';
@@ -33,28 +94,149 @@ function formatAmount(minorUnits: number, currency = 'GBP') {
 
 export default function AddExpenseScreen() {
   const router = useRouter();
+  const { groupId: groupIdParam, expenseId: expenseIdParam } =
+    useLocalSearchParams<{ groupId: string; expenseId?: string }>();
+  const groupId = parseInt(groupIdParam ?? '0', 10);
+  const expenseId = expenseIdParam ? parseInt(expenseIdParam, 10) : null;
+  const isEditMode = expenseId !== null;
 
-  // ── Form state ──────────────────────────────────────────────────────────────
+  // ── Shared form state ────────────────────────────────────────────────────────
+  const {
+    members, setMembers,
+    amountText, setAmountText,
+    payerMode, setPayerMode,
+    singlePayerId, setSinglePayerId,
+    multiPayerAmounts, setMultiPayerAmounts,
+    setExpenseId,
+  } = useExpenseForm();
+
+  // ── Local form state ─────────────────────────────────────────────────────────
   const [description, setDescription] = useState('');
-  const [amountText, setAmountText] = useState('');
   const [currency] = useState('GBP');
-  const [participantIds, setParticipantIds] = useState<string[]>(
-    MOCK_GROUP.members.map((m) => m.id), // all members selected by default
-  );
-  const [itemCount] = useState(0); // set when items are added (E.3 flow)
+  const [participantIds, setParticipantIds] = useState<number[]>([]);
+  const [itemCount] = useState(0);
+  const [pickerVisible, setPickerVisible] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [savingParticipants, setSavingParticipants] = useState(false);
 
-  // Derived
+  // ── Load data on mount ───────────────────────────────────────────────────────
+  useEffect(() => {
+    setExpenseId(expenseId);
+
+    const groupPromise = getGroup(groupId);
+    const expensePromise = isEditMode ? getExpense(expenseId!) : Promise.resolve(null);
+
+    Promise.all([groupPromise, expensePromise])
+      .then(([group, expense]) => {
+        setMembers(group.members);
+
+        if (expense) {
+          // Edit mode: pre-populate from fetched expense
+          setDescription(expense.title);
+          setAmountText((expense.total_amount / 100).toFixed(2));
+          setParticipantIds(expense.participants.map((p) => p.user_id));
+
+          if (expense.payments.length === 1) {
+            setPayerMode('one');
+            setSinglePayerId(expense.payments[0].paid_by);
+          } else if (expense.payments.length > 1) {
+            setPayerMode('multi');
+            const amounts: Record<string, string> = {};
+            for (const p of expense.payments) {
+              amounts[String(p.paid_by)] = (p.amount / 100).toFixed(2);
+            }
+            setMultiPayerAmounts(amounts);
+          }
+        } else {
+          // Create mode: all members selected by default
+          setParticipantIds(group.members.map((m) => m.user_id));
+        }
+      })
+      .catch(() => Alert.alert('Error', 'Could not load expense data'))
+      .finally(() => setLoading(false));
+  }, [groupId, expenseId]);
+
+  // ── Derived ──────────────────────────────────────────────────────────────────
   const amountMinorUnits = Math.round(parseFloat(amountText || '0') * 100);
-  const payer = MOCK_GROUP.members.find((m) => m.id === CURRENT_USER_ID);
+  const memberItems = members.map((m) => ({ userId: String(m.user_id), name: m.name }));
+  const singlePayer = members.find((m) => m.user_id === singlePayerId);
   const splitCount = participantIds.length || 1;
   const sharePerPerson = splitCount > 0 ? Math.round(amountMinorUnits / splitCount) : 0;
+  const canSave =
+    description.trim().length > 0 && amountMinorUnits > 0 && participantIds.length > 0 && !saving;
 
-  const canSave = description.trim().length > 0 && amountMinorUnits > 0 && participantIds.length > 0;
-
-  // ── Participant chip toggle ──────────────────────────────────────────────────
-  function toggleParticipant(userId: string) {
+  // ── Participant toggle ───────────────────────────────────────────────────────
+  function toggleParticipant(userId: number) {
     setParticipantIds((prev) =>
       prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId],
+    );
+  }
+
+  // ── Close participant picker (PUT immediately in edit mode) ──────────────────
+  async function closeParticipantPicker() {
+    if (isEditMode) {
+      setSavingParticipants(true);
+      try {
+        await setParticipants(expenseId!, participantIds);
+      } catch {
+        Alert.alert('Error', 'Could not update participants');
+      } finally {
+        setSavingParticipants(false);
+      }
+    }
+    setPickerVisible(false);
+  }
+
+  // ── Save ─────────────────────────────────────────────────────────────────────
+  async function handleSave() {
+    setSaving(true);
+    try {
+      if (isEditMode) {
+        await updateExpense(expenseId!, {
+          type: 'simple',
+          title: description.trim(),
+          currency,
+          total_amount: amountMinorUnits,
+          split_method: 'even',
+        });
+      } else {
+        const payments =
+          payerMode === 'one'
+            ? [{ paid_by: singlePayerId, amount: amountMinorUnits }]
+            : Object.entries(multiPayerAmounts)
+                .filter(([, v]) => parseFloat(v || '0') > 0)
+                .map(([userId, v]) => ({
+                  paid_by: parseInt(userId, 10),
+                  amount: Math.round(parseFloat(v) * 100),
+                }));
+
+        await createExpense(groupId, {
+          type: 'simple',
+          title: description.trim(),
+          currency,
+          total_amount: amountMinorUnits,
+          payments,
+          participant_ids: participantIds,
+          split_method: 'even',
+        });
+      }
+      router.back();
+    } catch (err) {
+      Alert.alert('Error', err instanceof Error ? err.message : 'Failed to save expense');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // ── Loading screen (edit mode only — fields need pre-population) ─────────────
+  if (loading && isEditMode) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={Colors.primary} />
+        </View>
+      </SafeAreaView>
     );
   }
 
@@ -69,40 +251,91 @@ export default function AddExpenseScreen() {
           <TouchableOpacity onPress={() => router.back()}>
             <Text style={styles.headerBtn}>Cancel</Text>
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Add Expense</Text>
-          <TouchableOpacity disabled={!canSave}>
-            <Text style={[styles.headerBtn, styles.headerBtnPrimary, !canSave && styles.headerBtnDisabled]}>
-              Save
-            </Text>
+          <Text style={styles.headerTitle}>{isEditMode ? 'Edit Expense' : 'Add Expense'}</Text>
+          <TouchableOpacity disabled={!canSave} onPress={handleSave}>
+            {saving ? (
+              <ActivityIndicator size="small" color={Colors.text} />
+            ) : (
+              <Text style={[styles.headerBtn, styles.headerBtnPrimary, !canSave && styles.headerBtnDisabled]}>
+                Save
+              </Text>
+            )}
           </TouchableOpacity>
         </View>
+
+        {/* ── Member picker modal ── */}
+        <Modal
+          visible={pickerVisible}
+          animationType="slide"
+          presentationStyle="pageSheet"
+          onRequestClose={closeParticipantPicker}
+        >
+          <SafeAreaView style={styles.modalSafe}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Who's involved?</Text>
+              <TouchableOpacity
+                onPress={closeParticipantPicker}
+                disabled={savingParticipants}
+              >
+                {savingParticipants ? (
+                  <ActivityIndicator size="small" color={Colors.text} />
+                ) : (
+                  <Text style={styles.modalDone}>Done</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={members}
+              keyExtractor={(m) => String(m.user_id)}
+              renderItem={({ item }) => {
+                const selected = participantIds.includes(item.user_id);
+                return (
+                  <TouchableOpacity
+                    style={styles.memberRow}
+                    onPress={() => toggleParticipant(item.user_id)}
+                    disabled={savingParticipants}
+                  >
+                    <Avatar userId={String(item.user_id)} name={item.name} size={36} />
+                    <Text style={styles.memberName}>{item.name}</Text>
+                    <View style={[styles.checkbox, selected && styles.checkboxChecked]}>
+                      {selected && <Text style={styles.checkmark}>✓</Text>}
+                    </View>
+                  </TouchableOpacity>
+                );
+              }}
+              ItemSeparatorComponent={() => <View style={styles.separator} />}
+            />
+          </SafeAreaView>
+        </Modal>
 
         <ScrollView style={styles.scroll} keyboardShouldPersistTaps="handled">
 
           {/* ── Section: Who's involved ── */}
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>Who's involved</Text>
-            <View style={styles.chipWrap}>
-              {MOCK_GROUP.members.map((member) => {
-                const selected = participantIds.includes(member.id);
-                return (
-                  <TouchableOpacity
-                    key={member.id}
-                    style={[styles.chip, selected && styles.chipSelected]}
-                    onPress={() => toggleParticipant(member.id)}
-                  >
-                    <Avatar userId={member.id} name={member.name} size={24} />
-                    <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
-                      {member.name}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-              {/* "+ Add" chip (out of scope, visual placeholder only) */}
-              <TouchableOpacity style={[styles.chip, styles.chipAdd]}>
-                <Text style={styles.chipAddText}>+ Add</Text>
+            {loading ? (
+              <ActivityIndicator style={{ marginVertical: 16 }} />
+            ) : (
+              <TouchableOpacity
+                style={styles.summaryRow}
+                onPress={() => setPickerVisible(true)}
+              >
+                <View style={styles.summaryRowLeft}>
+                  <ParticipantFacepile
+                    members={memberItems}
+                    selectedIds={participantIds}
+                  />
+                  <Text style={styles.summaryRowText}>
+                    {participantIds.length === 0
+                      ? 'No one selected'
+                      : participantIds.length === members.length
+                      ? 'Everyone'
+                      : `${participantIds.length} people`}
+                  </Text>
+                </View>
+                <Text style={styles.chevron}>›</Text>
               </TouchableOpacity>
-            </View>
+            )}
           </View>
 
           {/* ── Section: Description ── */}
@@ -122,13 +355,11 @@ export default function AddExpenseScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>Amount</Text>
             <View style={styles.amountRow}>
-              {/* Currency pill */}
               <TouchableOpacity style={styles.currencyPill}>
                 <Text style={styles.currencyPillText}>
                   {currency === 'GBP' ? '£' : '$'} {currency}
                 </Text>
               </TouchableOpacity>
-              {/* Amount input */}
               <TextInput
                 style={styles.amountInput}
                 placeholder="0.00"
@@ -138,7 +369,6 @@ export default function AddExpenseScreen() {
                 onChangeText={setAmountText}
               />
             </View>
-            {/* Receipt button */}
             <TouchableOpacity
               style={styles.receiptBtn}
               onPress={() => router.push('/expense/items')}
@@ -159,9 +389,13 @@ export default function AddExpenseScreen() {
               onPress={() => router.push('/expense/paid-by')}
             >
               <View style={styles.summaryRowLeft}>
-                {payer && <Avatar userId={payer.id} name={payer.name} size={28} />}
+                {payerMode === 'one' && singlePayer && (
+                  <Avatar userId={String(singlePayer.user_id)} name={singlePayer.name} size={28} />
+                )}
                 <Text style={styles.summaryRowText}>
-                  {payer?.name ?? 'Unknown'}
+                  {payerMode === 'multi'
+                    ? 'Multiple payers'
+                    : (singlePayer?.name ?? 'Unknown')}
                   {amountMinorUnits > 0 ? ` · ${formatAmount(amountMinorUnits, currency)}` : ''}
                 </Text>
               </View>
@@ -197,8 +431,15 @@ export default function AddExpenseScreen() {
           <TouchableOpacity
             style={[styles.saveBtn, !canSave && styles.saveBtnDisabled]}
             disabled={!canSave}
+            onPress={handleSave}
           >
-            <Text style={styles.saveBtnText}>Save Expense</Text>
+            {saving ? (
+              <ActivityIndicator color={Colors.primaryText} />
+            ) : (
+              <Text style={styles.saveBtnText}>
+                {isEditMode ? 'Save Changes' : 'Save Expense'}
+              </Text>
+            )}
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -210,6 +451,7 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: Colors.surface },
   flex: { flex: 1 },
   scroll: { flex: 1 },
+  loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 
   // Header
   header: {
@@ -244,27 +486,42 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
 
-  // Participant chips
-  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingBottom: 12 },
-  chip: {
+  // Member picker modal
+  modalSafe: { flex: 1, backgroundColor: Colors.surface },
+  modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 20,
-    backgroundColor: Colors.chipUnselected,
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
   },
-  chipSelected: { backgroundColor: Colors.chipSelected },
-  chipText: { fontSize: 14, color: Colors.chipUnselectedText },
-  chipTextSelected: { color: Colors.chipSelectedText, fontWeight: '600' },
-  chipAdd: {
-    borderWidth: 1.5,
-    borderStyle: 'dashed',
+  modalTitle: { fontSize: 17, fontWeight: '600', color: Colors.text },
+  modalDone: { fontSize: 16, fontWeight: '700', color: Colors.text },
+  memberRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    gap: 12,
+  },
+  memberName: { flex: 1, fontSize: 16, color: Colors.text },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
     borderColor: Colors.borderStrong,
-    backgroundColor: 'transparent',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  chipAddText: { fontSize: 14, color: Colors.textMuted },
+  checkboxChecked: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  checkmark: { fontSize: 13, fontWeight: '700', color: '#fff' },
+  separator: { height: 1, backgroundColor: Colors.border, marginLeft: 64 },
 
   // Description
   textInput: {

@@ -6,7 +6,7 @@
  *   GET /groups/:id/expenses → paginated expense list
  *   GET /groups/:id/balances → per-member net balances
  */
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -17,7 +17,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Colors } from '@/constants/colors';
 import { Avatar } from '@/components/Avatar';
 import { DEV_USER_ID } from '@/constants/config';
@@ -181,14 +181,16 @@ function TabBar({
 function ExpenseRow({
   expense,
   members,
+  onPress,
 }: {
   expense: ExpenseSummary;
   members: GroupDetail['members'];
+  onPress: () => void;
 }) {
   const creator = members.find((m) => m.user_id === expense.created_by);
 
   return (
-    <View style={styles.expenseRow}>
+    <TouchableOpacity style={styles.expenseRow} onPress={onPress} activeOpacity={0.7}>
       <View style={styles.expenseIcon}>
         <Text style={styles.expenseTypeIcon}>{expense.type === 'itemised' ? '🧾' : '💸'}</Text>
       </View>
@@ -208,17 +210,20 @@ function ExpenseRow({
       <Text style={styles.expenseAmount}>
         {formatAmount(expense.total_amount, expense.currency)}
       </Text>
-    </View>
+    </TouchableOpacity>
   );
 }
 
 function ExpensesTab({
   expenses,
   members,
+  groupId,
 }: {
   expenses: ExpenseSummary[];
   members: GroupDetail['members'];
+  groupId: number;
 }) {
+  const router = useRouter();
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'all' | 'mine'>('all');
 
@@ -268,7 +273,12 @@ function ExpensesTab({
         <View key={label}>
           <Text style={styles.sectionHeader}>{label.toUpperCase()}</Text>
           {items.map((e) => (
-            <ExpenseRow key={e.id} expense={e} members={members} />
+            <ExpenseRow
+              key={e.id}
+              expense={e}
+              members={members}
+              onPress={() => router.push(`/expense/${groupId}?expenseId=${e.id}`)}
+            />
           ))}
         </View>
       ))}
@@ -378,7 +388,7 @@ export default function GroupDetailScreen() {
       .finally(() => setLoading(false));
   }
 
-  useEffect(() => { load(); }, [groupId]);
+  useFocusEffect(useCallback(() => { load(); }, [groupId]));
 
   if (loading) {
     return (
@@ -409,7 +419,7 @@ export default function GroupDetailScreen() {
       />
       <TabBar active={activeTab} onChange={setActiveTab} />
       {activeTab === 'expenses' ? (
-        <ExpensesTab expenses={expenses} members={group.members} />
+        <ExpensesTab expenses={expenses} members={group.members} groupId={groupId} />
       ) : (
         <BalancesTab balances={balances} />
       )}
