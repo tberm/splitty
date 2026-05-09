@@ -115,6 +115,7 @@ async def list_expenses(
     page: int = 1,
     page_size: int = 20,
 ) -> PaginatedExpenses:
+    """List expenses in a group, paginated."""
     total = await db.fetchval("SELECT COUNT(*) FROM expenses WHERE group_id = $1", group_id)
     rows = await db.fetch(
         """SELECT id, title, currency, total_amount, type, created_by, created_at,
@@ -133,6 +134,13 @@ async def create_expense(
     current_user: CurrentUser,
     db: DbConn,
 ) -> ExpenseDetailOut:
+    """
+    Create a new expense in a group.
+
+    Expense creation is done in a single step - the user submits all the
+    information about the expense, including payments, participants,
+    attributions (if any), and items (if itemised).
+    """
     async with db.transaction():
         if isinstance(body, CreateSimpleExpenseIn):
             expense_row = await db.fetchrow(
@@ -202,6 +210,10 @@ async def create_expense(
 
 @router.get("/{expense_id}", response_model=ExpenseDetailOut)
 async def get_expense(expense_id: int, current_user: CurrentUser, db: DbConn) -> ExpenseDetailOut:
+    """
+    Get details of an expense, including payments, participants, attributions
+    (if any), and items (if itemised).
+    """
     return await _fetch_expense_detail(db, expense_id)
 
 
@@ -209,6 +221,14 @@ async def get_expense(expense_id: int, current_user: CurrentUser, db: DbConn) ->
 async def update_expense(
     expense_id: int, body: UpdateExpenseIn, current_user: CurrentUser, db: DbConn
 ) -> ExpenseDetailOut:
+    """
+    Update the core details of an expense.
+
+    Unlike expense creation, different parts of the expense are updated
+    separately. This is to reduce problems due to concurrent updates and reduce
+    how much data needs to be sent when only a small part of the expense is
+    changing.
+    """
     updates: dict = {}
     for field in ("title", "notes", "currency", "total_amount"):
         v = getattr(body, field, None)
@@ -239,6 +259,10 @@ async def update_expense(
 async def set_payments(
     expense_id: int, body: list[PaymentIn], current_user: CurrentUser, db: DbConn
 ) -> list[PaymentOut]:
+    """
+    Set the payments for an expense. This updates all payments for the expense
+    to match the provided list.
+    """
     async with db.transaction():
         await db.execute("DELETE FROM payments WHERE expense_id = $1", expense_id)
         await _insert_payments(db, expense_id, body)
@@ -253,6 +277,11 @@ async def set_payments(
 async def set_participants(
     expense_id: int, body: list[int], current_user: CurrentUser, db: DbConn
 ) -> list[ParticipantOut]:
+    """
+    Set the participants for an expense. This updates all participants for the
+    expense to match the provided list. Removals may be rejected with 409 if a
+    DB constraint blocks them (e.g. the participant has existing attributions).
+    """
     async with db.transaction():
         current_rows = await db.fetch(
             "SELECT user_id FROM expense_participants WHERE expense_id = $1", expense_id
@@ -289,6 +318,11 @@ async def set_participants(
 async def set_attributions(
     expense_id: int, body: list[SimpleAttributionIn], current_user: CurrentUser, db: DbConn
 ) -> list[SimpleAttributionOut]:
+    """
+    Set the explicit attributions for an expense. This updates all attributions
+    for the expense to match the provided list. Only used for simple expenses;
+    itemised expenses use item attributions instead.
+    """
     async with db.transaction():
         await db.execute(
             "DELETE FROM attributions WHERE expense_id = $1",
@@ -310,6 +344,16 @@ async def set_attributions(
 async def set_items(
     expense_id: int, body: list[ItemIn], current_user: CurrentUser, db: DbConn
 ) -> list[ItemOut]:
+    """
+    Set the items for an itemised expense.
+
+    Items in the list will be matched to existing items by their ID (if they
+    have one). Items without an ID will be treated as new and created. Any
+    existing items that are not included in the list will be deleted.
+
+    Item attributions are not managed here. New items will start with no
+    attributions, and existing items keep their existing attributions.
+    """
     async with db.transaction():
         current_rows = await db.fetch(
             "SELECT id FROM expense_items WHERE expense_id = $1", expense_id
@@ -359,6 +403,14 @@ async def set_items(
 async def set_item_attributions(
     expense_id: int, item_id: int, body: list[ItemAttributionIn], current_user: CurrentUser, db: DbConn
 ) -> list[ItemAttributionOut]:
+    """
+    Set the list of attributions for an item in an itemised expense.
+
+    This replaces all attributions for the item with the provided list. Note that
+    when users go through the self-assignment flow they use `submit_assignment`
+    instead, which allows them to update their attribution without affecting other
+    attributions for the item.
+    """
     async with db.transaction():
         await db.execute("DELETE FROM attributions WHERE expense_item_id = $1", item_id)
         for attr in body:
@@ -380,6 +432,7 @@ async def set_item_attributions(
 async def submit_assignment(
     expense_id: int, user_id: int, body: SubmitAssignmentIn, current_user: CurrentUser, db: DbConn
 ) -> AssignmentOut:
+    """Submit a user's self-assigned attributions for an itemised expense."""
     async with db.transaction():
         for attr in body.attributions:
             await db.execute(
@@ -423,6 +476,7 @@ async def submit_assignment(
 
 @router.delete("/{expense_id}", status_code=204)
 async def delete_expense(expense_id: int, current_user: CurrentUser, db: DbConn) -> None:
+    """Delete an expense."""
     await db.execute("DELETE FROM expenses WHERE id = $1", expense_id)
 
 
@@ -435,6 +489,12 @@ async def get_receipt_image(expense_id: int, current_user: CurrentUser, db: DbCo
 async def get_effective_attributions(
     expense_id: int, current_user: CurrentUser, db: DbConn
 ) -> list[EffectiveAttributionOut]:
+    """
+    Get the effective attributions for an expense. For simple expenses this
+    applies the split method (even or explicit). For itemised expenses it sums
+    per-item amounts, splitting any unclaimed item totals evenly across all
+    participants.
+    """
     rows = await db.fetch(
         """SELECT ea.user_id, u.name, ea.effective_amount
            FROM effective_attributions ea
